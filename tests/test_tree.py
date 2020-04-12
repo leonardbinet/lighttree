@@ -410,22 +410,22 @@ class TreeCase(TestCase):
 
     def test_children(self):
         t = self._get_sample_tree()
-        self.assertEqual(t.children("root"), {"a", "b"})
-        self.assertEqual(t.children("a"), {"a1", "a2"})
-        self.assertEqual(t.children("b"), {"b1"})
-        self.assertEqual(t.children("a1"), {"a11", "a12"})
-        self.assertEqual(t.children("b1"), set())
+        self.assertEqual(set(t.children("root")), {"a", "b"})
+        self.assertEqual(set(t.children("a")), {"a1", "a2"})
+        self.assertEqual(t.children("b"), ["b1"])
+        self.assertEqual(set(t.children("a1")), {"a11", "a12"})
+        self.assertEqual(t.children("b1"), [])
         with self.assertRaises(NotFoundNodeError):
             t.children("non-existing-id")
         self.assertIs(next(iter(t.children("b", id_only=False))), t._nodes_map["b1"])
 
     def test_siblings(self):
         t = self._get_sample_tree()
-        self.assertEqual(t.siblings("root"), set())
-        self.assertEqual(t.siblings("a"), {"b"})
-        self.assertEqual(t.siblings("b"), {"a"})
-        self.assertEqual(t.siblings("a1"), {"a2"})
-        self.assertEqual(t.siblings("b1"), set())
+        self.assertEqual(t.siblings("root"), [])
+        self.assertEqual(t.siblings("a"), ["b"])
+        self.assertEqual(t.siblings("b"), ["a"])
+        self.assertEqual(t.siblings("a1"), ["a2"])
+        self.assertEqual(t.siblings("b1"), [])
         with self.assertRaises(NotFoundNodeError):
             t.siblings("non-existing-id")
         self.assertIs(next(iter(t.siblings("b", id_only=False))), t._nodes_map["a"])
@@ -469,10 +469,10 @@ class TreeCase(TestCase):
 
     def test_leaves(self):
         t = self._get_sample_tree()
-        self.assertEqual(t.leaves(), {"a11", "a12", "a2", "b1"})
-        self.assertEqual(t.leaves("a"), {"a11", "a12", "a2"})
-        self.assertEqual(t.leaves("a11"), {"a11"})
-        self.assertEqual(t.leaves("b"), {"b1"})
+        self.assertEqual(set(t.leaves()), {"a11", "a12", "a2", "b1"})
+        self.assertEqual(set(t.leaves("a")), {"a11", "a12", "a2"})
+        self.assertEqual(t.leaves("a11"), ["a11"])
+        self.assertEqual(t.leaves("b"), ["b1"])
 
     def test_expand_tree(self):
         t = self._get_sample_custom_tree()

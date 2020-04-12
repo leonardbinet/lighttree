@@ -56,7 +56,7 @@ class Tree(object):
             if allow_empty:
                 return None
             raise ValueError("'nid' set to None not supported.")
-        if nid not in self._nodes_map:
+        if nid not in self:
             raise NotFoundNodeError("Node id <%s> doesn't exist in tree" % nid)
         return nid
 
@@ -145,22 +145,21 @@ class Tree(object):
     def children(self, nid, id_only=True):
         """Return set of given node children node ids."""
         self._ensure_present(nid)
-        # make a deep copy so that pointers cannot be mutated
-        ids = set(self._nodes_children[nid])
+        ids = list(self._nodes_children[nid])
         if id_only:
             return ids
-        return {self.get(id_) for id_ in ids}
+        return [self.get(id_) for id_ in ids]
 
     def siblings(self, nid, id_only=True):
         """Return set of ids of nodes that share the provided node's parent."""
         self._ensure_present(nid)
         if nid == self.root:
-            return set()
+            return []
         pid = self.parent(nid, id_only=True)
-        ids = self.children(pid, id_only=True).difference({nid})
+        ids = list(set(self.children(pid, id_only=True)).difference({nid}))
         if id_only:
             return ids
-        return {self.get(id_) for id_ in ids}
+        return [self.get(id_) for id_ in ids]
 
     def is_leaf(self, nid):
         """Return is node is a leaf in this tree."""
@@ -190,10 +189,10 @@ class Tree(object):
     def leaves(self, nid=None, id_only=True):
         """Return leaves under a node subtree."""
         tree = self if nid is None else self.subtree(nid)
-        leaves_ids = {id_ for id_ in tree._nodes_map.keys() if tree.is_leaf(id_)}
+        leaves_ids = [id_ for id_ in tree._nodes_map.keys() if tree.is_leaf(id_)]
         if id_only:
             return leaves_ids
-        return {tree.get(id_) for id_ in leaves_ids}
+        return [tree.get(id_) for id_ in leaves_ids]
 
     def insert(
         self, item, parent_id=None, child_id=None, deep=False, child_id_below=None
