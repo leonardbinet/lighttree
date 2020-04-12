@@ -261,7 +261,7 @@ class Tree(object):
     ):
         self._validate_tree_insertion(new_tree)
         if new_tree.is_empty():
-            raise ValueError("Inserted tree is empty")
+            return self
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
         if parent_id is None and child_id is None:

@@ -23,7 +23,7 @@ class Node(object):
             identifier = uuid.uuid4()
         self.identifier = identifier
 
-    def line_repr(self, **kwargs):
+    def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
         """
         return self.identifier
