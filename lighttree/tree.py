@@ -219,32 +219,38 @@ class Tree(object):
             '"item" parameter must either be a Node, or a Tree, got <%s>.' % type(item)
         )
 
-    def insert_node(self, node, parent_id=None, child_id=None, deep=False):
+    def insert_node(self, node, parent_id=None, child_id=None, deep=False, with_children=True):
         self._validate_node_insertion(node)
         node = deepcopy(node) if deep else node
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
         if parent_id is None and child_id is None:
-            self._insert_node_at_root(node)
+            self._insert_node_at_root(node, with_children=with_children)
             return self
         if parent_id is not None:
-            self._insert_node_below(node, parent_id=parent_id)
+            self._insert_node_below(node, parent_id=parent_id, with_children=with_children)
             return self
         self._insert_node_above(node, child_id=child_id)
         return self
 
-    def _insert_node_at_root(self, node):
+    def _insert_node_at_root(self, node, with_children=True):
         if not self.is_empty():
             raise MultipleRootError("A tree takes one root merely.")
         self.root = node.identifier
         self._nodes_map[node.identifier] = node
+        if with_children and hasattr(node, "_children"):
+            for child in node._children or []:
+                self.insert(child, parent_id=node.identifier)
 
-    def _insert_node_below(self, node, parent_id):
+    def _insert_node_below(self, node, parent_id, with_children=True):
         self._ensure_present(parent_id)
         node_id = node.identifier
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
         self._nodes_children[parent_id].add(node_id)
+        if with_children and hasattr(node, "_children"):
+            for child in node._children or []:
+                self.insert(child, parent_id=node.identifier)
 
     def _insert_node_above(self, node, child_id):
         self._ensure_present(child_id)
@@ -291,7 +297,8 @@ class Tree(object):
         for new_nid in new_tree.expand_tree():
             node = new_tree.get(new_nid)
             pid = parent_id if new_nid == new_tree.root else new_tree.parent(new_nid)
-            self.insert_node(deepcopy(node) if deep else node, parent_id=pid)
+            # with_children set to None to avoid double-inserting nodes
+            self.insert_node(deepcopy(node) if deep else node, parent_id=pid, with_children=False)
 
     def _insert_tree_above(self, new_tree, child_id, child_id_below, deep):
         # make all checks before modifying tree

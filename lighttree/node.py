@@ -8,7 +8,7 @@ import uuid
 
 @python_2_unicode_compatible
 class Node(object):
-    def __init__(self, identifier=None, auto_uuid=False):
+    def __init__(self, identifier=None, auto_uuid=False, _children=None):
         """
         :param identifier: node identifier, must be unique per tree
         """
@@ -22,6 +22,12 @@ class Node(object):
                 raise ValueError("Required identifier")
             identifier = uuid.uuid4()
         self.identifier = identifier
+        # children type is not checked here, it is at insertion in tree
+        # only allowed types should be Node, or Tree, but cannot ensure whether it's a Tree since it would cause
+        # a recursive import error
+        if _children is not None and not isinstance(_children, (list, tuple)):
+            raise ValueError('Invalid children declaration.')
+        self._children = _children
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
