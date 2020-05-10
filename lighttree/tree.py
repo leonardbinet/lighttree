@@ -101,33 +101,24 @@ class Tree(object):
         """
         return self.__class__()
 
-    def _clone_nodes_with_hierarchy(self, new_tree, deep, new_root=None):
-        """Clone nodes and node hierarchies from current tree to new tree."""
-        self._validate_tree_insertion(new_tree)
-        if new_root is not None:
-            self._ensure_present(new_root)
-        else:
-            new_root = self.root
-        for node in self.expand_tree(new_root, id_only=False):
-            new_tree._nodes_map[node.identifier] = deepcopy(node) if deep else node
-            new_tree._nodes_parent[node.identifier] = self._nodes_parent[
-                node.identifier
-            ]
-            new_tree._nodes_children[node.identifier] = set(
-                self._nodes_children[node.identifier]
-            )
-
-        new_tree.root = new_root
-        new_tree._nodes_parent[new_root] = None
-        return new_tree
-
     def clone(self, with_tree=True, deep=False, new_root=None):
         """Clone current instance, with or without tree.
         :rtype: :class:`ltree.Tree`
         """
         new_tree = self._clone_init(deep)
-        if with_tree:
-            self._clone_nodes_with_hierarchy(new_tree, new_root=new_root, deep=deep)
+        if not with_tree:
+            return new_tree
+        if new_root is None:
+            new_tree.insert(self, deep=deep)
+            return new_tree
+
+        for nid in self.expand_tree(nid=new_root):
+            node = self.get(nid)
+            if deep:
+                node = deepcopy(node)
+            pid = None if nid == self.root or nid == new_root else self.parent(nid)
+            # with_children only makes sense when using "node hierarchy" syntax
+            new_tree.insert_node(node, parent_id=pid, with_children=False)
         return new_tree
 
     def parent(self, nid, id_only=True):
@@ -219,41 +210,45 @@ class Tree(object):
             '"item" parameter must either be a Node, or a Tree, got <%s>.' % type(item)
         )
 
-    def insert_node(self, node, parent_id=None, child_id=None, deep=False):
+    def insert_node(
+        self, node, parent_id=None, child_id=None, deep=False, with_children=True
+    ):
         self._validate_node_insertion(node)
         node = deepcopy(node) if deep else node
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
-        if parent_id is None and child_id is None:
-            self._insert_node_at_root(node)
+        if child_id is not None:
+            self._insert_node_above(node, child_id=child_id)
             return self
-        if parent_id is not None:
-            self._insert_node_below(node, parent_id=parent_id)
-            return self
-        self._insert_node_above(node, child_id=child_id)
+        self._insert_node_below(node, parent_id=parent_id, with_children=with_children)
         return self
 
-    def _insert_node_at_root(self, node):
-        if not self.is_empty():
-            raise MultipleRootError("A tree takes one root merely.")
-        self.root = node.identifier
-        self._nodes_map[node.identifier] = node
+    def _insert_node_below(self, node, parent_id, with_children=True):
+        # insertion at root
+        if parent_id is None:
+            if not self.is_empty():
+                raise MultipleRootError("A tree takes one root merely.")
+            self.root = node.identifier
+            self._nodes_map[node.identifier] = node
+            if with_children and hasattr(node, "_children"):
+                for child in node._children or []:
+                    self.insert(child, parent_id=node.identifier)
+            return
 
-    def _insert_node_below(self, node, parent_id):
         self._ensure_present(parent_id)
         node_id = node.identifier
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
         self._nodes_children[parent_id].add(node_id)
+        if with_children and hasattr(node, "_children"):
+            for child in node._children or []:
+                self.insert(child, parent_id=node.identifier)
 
     def _insert_node_above(self, node, child_id):
         self._ensure_present(child_id)
         parent_id = self.parent(child_id)
         child_subtree = self.drop_subtree(child_id)
-        if parent_id is None:
-            self._insert_node_at_root(node)
-        else:
-            self._insert_node_below(node, parent_id)
+        self._insert_node_below(node, parent_id)
         self._insert_tree_below(child_subtree, node.identifier, False)
 
     def insert_tree(
@@ -264,26 +259,20 @@ class Tree(object):
             return self
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
-        if parent_id is None and child_id is None:
-            self._insert_tree_at_root(new_tree, deep=deep)
-            return self
-        if parent_id is not None:
-            self._insert_tree_below(new_tree, parent_id=parent_id, deep=deep)
-            return self
-        self._insert_tree_above(
-            new_tree, child_id=child_id, child_id_below=child_id_below, deep=deep
-        )
-        return self
-
-    def _insert_tree_at_root(self, new_tree, deep):
-        # replace tree, allowed only if initial tree is empty
-        if not self.is_empty():
-            raise MultipleRootError("A tree takes one root merely.")
-        new_tree._clone_nodes_with_hierarchy(self, deep=deep)
+        if child_id is not None:
+            return self._insert_tree_above(
+                new_tree, child_id=child_id, child_id_below=child_id_below, deep=deep
+            )
+        return self._insert_tree_below(new_tree, parent_id=parent_id, deep=deep)
 
     def _insert_tree_below(self, new_tree, parent_id, deep):
+        if parent_id is None:
+            # insertion at root requires tree to be empty
+            if not self.is_empty():
+                raise MultipleRootError("A tree takes one root merely.")
+        else:
+            self._ensure_present(parent_id)
         self._validate_tree_insertion(new_tree)
-        self._ensure_present(parent_id)
 
         if new_tree.is_empty():
             return self
@@ -291,7 +280,11 @@ class Tree(object):
         for new_nid in new_tree.expand_tree():
             node = new_tree.get(new_nid)
             pid = parent_id if new_nid == new_tree.root else new_tree.parent(new_nid)
-            self.insert_node(deepcopy(node) if deep else node, parent_id=pid)
+            # with_children only makes sense when using "node hierarchy" syntax
+            self.insert_node(
+                deepcopy(node) if deep else node, parent_id=pid, with_children=False
+            )
+        return self
 
     def _insert_tree_above(self, new_tree, child_id, child_id_below, deep):
         # make all checks before modifying tree
@@ -309,11 +302,7 @@ class Tree(object):
             child_id_below = new_tree_leaves.pop()
         parent_id = self.parent(child_id)
         child_subtree = self.drop_subtree(child_id)
-        if parent_id is None:
-            self._insert_tree_at_root(new_tree, deep)
-        else:
-            self._insert_tree_below(new_tree, parent_id, deep)
-
+        self._insert_tree_below(new_tree, parent_id, deep)
         self._insert_tree_below(child_subtree, child_id_below, False)
 
     def _drop_node(self, nid):
@@ -360,6 +349,7 @@ class Tree(object):
         nid=None,
         mode="depth",
         filter_=None,
+        filter_through=False,
         key=None,
         reverse=False,
         id_only=True,
@@ -371,8 +361,8 @@ class Tree(object):
 
         :param nid: Node identifier from which tree traversal will start. If None tree root will be used
         :param mode: Traversal mode, may be either "depth" or "width"
-        :param filter_: filter function performed on nodes. Node excluded from filter function nor their children
-        won't be yielded by generator.
+        :param filter_: filter function performed on nodes. Node excluded from filter function won't be yielded.
+        :param filter_through: if True, excluded nodes don't exclude their children.
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :param key: key used to order nodes of same parent
         :return: node ids that satisfy the conditions if ``id_only`` is True, else nodes.
@@ -384,23 +374,26 @@ class Tree(object):
         key = attrgetter("identifier") if key is None else key
         if nid is not None:
             node = self.get(nid)
-            if filter_ is None or filter_(node):
+            filter_pass_node = filter_ is None or filter_(node)
+            if filter_pass_node:
                 yield nid if id_only else node
+            if filter_pass_node or filter_through:
                 queue = [
                     child_node
                     for child_node in self.children(nid, id_only=False)
-                    if filter_ is None or filter_(child_node)
+                    if filter_ is None or filter_through or filter_(child_node)
                 ]
                 queue.sort(key=key, reverse=reverse)
                 while queue:
                     current_node = queue.pop(0)
-                    yield current_node.identifier if id_only else current_node
+                    if filter_ is None or filter_(current_node):
+                        yield current_node.identifier if id_only else current_node
                     expansion = [
                         gchild_node
                         for gchild_node in self.children(
                             current_node.identifier, id_only=False
                         )
-                        if filter_ is None or filter_(gchild_node)
+                        if filter_ is None or filter_through or filter_(gchild_node)
                     ]
                     expansion.sort(key=key, reverse=reverse)
                     if mode == "depth":
@@ -549,8 +542,7 @@ class Tree(object):
             )
 
         if self.is_empty():
-            new_tree._clone_nodes_with_hierarchy(new_tree=self, deep=deep)
-            return self
+            return self._insert_tree_below(new_tree, parent_id=None, deep=deep)
 
         nid = self._ensure_present(nid, defaults_to_root=True)
 

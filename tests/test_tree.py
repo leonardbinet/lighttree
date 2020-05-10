@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 
 from operator import attrgetter
+from collections import defaultdict
 from unittest import TestCase
 
 
@@ -28,10 +29,18 @@ def to_ids_set(nodes):
 
 
 class TreeCase(TestCase):
+    def assertDefaultDictEqual(self, first, second, msg=None):
+        """Assert that two items are defaultdict, and that they have same content, ignoring default values."""
+        self.assertIsInstance(first, defaultdict, msg)
+        self.assertIsInstance(second, defaultdict, msg)
+        self.assertEqual(first.default_factory(), second.default_factory(), msg)
+        for key in set(first.keys()) | set(second.keys()):
+            self.assertEqual(first[key], second[key])
+
     def test_insert_root(self):
         t = Tree()
         root_node = Node(identifier="a")
-        t._insert_node_at_root(root_node)
+        t._insert_node_below(root_node, None)
         self.assertSetEqual(to_ids_set(t.list()), {"a"})
         self.assertIs(t._nodes_map["a"], root_node)
         self.assertEqual(t._nodes_parent["a"], None)
@@ -40,7 +49,7 @@ class TreeCase(TestCase):
 
         # cannot add second root
         with self.assertRaises(MultipleRootError):
-            t._insert_node_at_root(Node(identifier="b"))
+            t._insert_node_below(Node(identifier="b"), None)
         self.assertSetEqual(to_ids_set(t.list()), {"a"})
         tree_sanity_check(t)
 
@@ -228,9 +237,9 @@ class TreeCase(TestCase):
         self.assertIsNot(t_shallow_clone._nodes_map, t._nodes_map)
         self.assertEqual(t_shallow_clone._nodes_map, t._nodes_map)
         self.assertIsNot(t_shallow_clone._nodes_parent, t._nodes_parent)
-        self.assertEqual(t_shallow_clone._nodes_parent, t._nodes_parent)
+        self.assertDefaultDictEqual(t_shallow_clone._nodes_parent, t._nodes_parent)
         self.assertIsNot(t_shallow_clone._nodes_children, t._nodes_children)
-        self.assertEqual(t_shallow_clone._nodes_children, t._nodes_children)
+        self.assertDefaultDictEqual(t_shallow_clone._nodes_children, t._nodes_children)
         # based on TreeWithComposition._clone_init method
         self.assertTrue(t_shallow_clone.is_cool)
         self.assertIs(t.mutable_object, t_shallow_clone.mutable_object)
@@ -257,19 +266,25 @@ class TreeCase(TestCase):
         self.assertSetEqual(
             set(t_clone._nodes_map.keys()), {"a", "a1", "a2", "a11", "a12"}
         )
-        self.assertEqual(
+        self.assertDefaultDictEqual(
             t_clone._nodes_parent,
-            {"a": None, "a1": "a", "a2": "a", "a11": "a1", "a12": "a1",},
+            defaultdict(
+                lambda: None,
+                {"a": None, "a1": "a", "a2": "a", "a11": "a1", "a12": "a1"},
+            ),
         )
-        self.assertEqual(
+        self.assertDefaultDictEqual(
             t_clone._nodes_children,
-            {
-                "a": {"a1", "a2"},
-                "a1": {"a11", "a12"},
-                "a2": set(),
-                "a11": set(),
-                "a12": set(),
-            },
+            defaultdict(
+                set,
+                {
+                    "a": {"a1", "a2"},
+                    "a1": {"a11", "a12"},
+                    "a2": set(),
+                    "a11": set(),
+                    "a12": set(),
+                },
+            ),
         )
 
         # based on TreeWithComposition._clone_init method
@@ -420,6 +435,24 @@ class TreeCase(TestCase):
         # subtree
         self.assertEqual(
             list(t.expand_tree(nid="a", mode="width")), ["a", "a1", "a2", "a11", "a12"]
+        )
+
+        # filter
+        self.assertEqual(
+            list(t.expand_tree(filter_=lambda x: x.identifier in ("root", "b"))),
+            ["root", "b"],
+        )
+
+        # without filter through
+        self.assertEqual(list(t.expand_tree(filter_=lambda x: "2" in x.identifier)), [])
+        # with filter through
+        self.assertEqual(
+            list(
+                t.expand_tree(
+                    filter_=lambda x: "2" in x.identifier, filter_through=True
+                )
+            ),
+            ["a12", "a2"],
         )
 
     def test_show(self):
@@ -855,5 +888,58 @@ class TreeCase(TestCase):
             """a1
 ├── a11
 └── a12
+""",
+        )
+
+    def test_node_hierarchy_deserialization(self):
+        node_hierarchy = Node(
+            identifier="root",
+            _children=[
+                Node(
+                    identifier="a",
+                    _children=[Node(identifier="a1"), Node(identifier="a2")],
+                ),
+                Node(identifier="b", _children=[Node(identifier="b1")]),
+            ],
+        )
+        t = Tree()
+        t.insert(node_hierarchy)
+        self.assertEqual(
+            t.show(),
+            """root
+├── a
+│   ├── a1
+│   └── a2
+└── b
+    └── b1
+""",
+        )
+
+    def test_node_hierarchy_with_tree_deserialization(self):
+        node_hierarchy = Node(
+            identifier="root",
+            _children=[
+                Node(
+                    identifier="a",
+                    _children=[Node(identifier="a1"), Node(identifier="a2")],
+                ),
+                Node(identifier="b", _children=[Node(identifier="b1")]),
+                get_sample_tree_2(),
+            ],
+        )
+        t = Tree()
+        t.insert(node_hierarchy)
+        self.assertEqual(
+            t.show(),
+            """root
+├── a
+│   ├── a1
+│   └── a2
+├── b
+│   └── b1
+└── c
+    ├── c1
+    │   └── c12
+    └── c2
 """,
         )
