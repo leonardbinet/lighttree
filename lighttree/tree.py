@@ -5,10 +5,9 @@ from __future__ import unicode_literals
 from future.utils import python_2_unicode_compatible, iteritems
 
 from collections import defaultdict
-from copy import deepcopy
 from operator import attrgetter
 
-from .node import Node
+from lighttree.node import Node
 from .utils import STYLES
 from .exceptions import MultipleRootError, NotFoundNodeError, DuplicatedNodeError
 
@@ -114,11 +113,8 @@ class Tree(object):
 
         for nid in self.expand_tree(nid=new_root):
             node = self.get(nid)
-            if deep:
-                node = deepcopy(node)
             pid = None if nid == self.root or nid == new_root else self.parent(nid)
-            # with_children only makes sense when using "node hierarchy" syntax
-            new_tree.insert_node(node, parent_id=pid, with_children=False)
+            new_tree.insert_node(node, parent_id=pid, deep=deep)
         return new_tree
 
     def parent(self, nid, id_only=True):
@@ -210,29 +206,34 @@ class Tree(object):
             '"item" parameter must either be a Node, or a Tree, got <%s>.' % type(item)
         )
 
-    def insert_node(
-        self, node, parent_id=None, child_id=None, deep=False, with_children=True
-    ):
+    def insert_node(self, node, parent_id=None, child_id=None, deep=False):
+        """Make a copy of inserted node, and insert it.
+
+        Note: when using "Node hierarchy" syntax, _children attribute of copied node are reset so that insertion occurs
+        once only.
+        """
         self._validate_node_insertion(node)
-        node = deepcopy(node) if deep else node
+        node = node.clone(deep=deep)
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
         if child_id is not None:
             self._insert_node_above(node, child_id=child_id)
             return self
-        self._insert_node_below(node, parent_id=parent_id, with_children=with_children)
+        self._insert_node_below(node, parent_id=parent_id)
         return self
 
-    def _insert_node_below(self, node, parent_id, with_children=True):
+    def _insert_node_below(self, node, parent_id):
         # insertion at root
         if parent_id is None:
             if not self.is_empty():
                 raise MultipleRootError("A tree takes one root merely.")
             self.root = node.identifier
             self._nodes_map[node.identifier] = node
-            if with_children and hasattr(node, "_children"):
-                for child in node._children or []:
-                    self.insert(child, parent_id=node.identifier)
+            for child in node._children:
+                self.insert(child, parent_id=node.identifier)
+            # reset _children attribute so that children nodes cannot be inserted multiple times
+            # rely on the fact that inserted nodes are copies, as handled in insert_node method
+            node._children = []
             return
 
         self._ensure_present(parent_id)
@@ -240,9 +241,11 @@ class Tree(object):
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
         self._nodes_children[parent_id].add(node_id)
-        if with_children and hasattr(node, "_children"):
-            for child in node._children or []:
-                self.insert(child, parent_id=node.identifier)
+        for child in node._children or []:
+            self.insert(child, parent_id=node.identifier)
+        # reset _children attribute so that children nodes cannot be inserted multiple times
+        # rely on the fact that inserted nodes are copies, as handled in insert_node method
+        node._children = []
 
     def _insert_node_above(self, node, child_id):
         self._ensure_present(child_id)
@@ -280,10 +283,8 @@ class Tree(object):
         for new_nid in new_tree.expand_tree():
             node = new_tree.get(new_nid)
             pid = parent_id if new_nid == new_tree.root else new_tree.parent(new_nid)
-            # with_children only makes sense when using "node hierarchy" syntax
-            self.insert_node(
-                deepcopy(node) if deep else node, parent_id=pid, with_children=False
-            )
+            # node copy is handled in insert_node method
+            self.insert_node(node, parent_id=pid, deep=deep)
         return self
 
     def _insert_tree_above(self, new_tree, child_id, child_id_below, deep):

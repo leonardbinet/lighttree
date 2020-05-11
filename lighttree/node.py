@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+import copy
 from future.utils import python_2_unicode_compatible, string_types
 
 import uuid
@@ -27,12 +29,15 @@ class Node(object):
         # a recursive import error
         if _children is not None and not isinstance(_children, (list, tuple)):
             raise ValueError("Invalid children declaration.")
-        self._children = _children
+        self._children = _children or []
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
         """
         return self.identifier
+
+    def clone(self, deep=False):
+        return copy.deepcopy(self) if deep else copy.copy(self)
 
     def serialize(self, *args, **kwargs):
         return {"identifier": self.identifier}
@@ -46,6 +51,11 @@ class Node(object):
     @classmethod
     def _deserialize(cls, d, *args, **kwargs):
         return cls(d.get("identifier"))
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.identifier == other.identifier and self._children == other._children
 
     def __str__(self):
         return "%s, id=%s" % (self.__class__.__name__, self.identifier)

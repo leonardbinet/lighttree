@@ -188,8 +188,7 @@ class TreeBasedObjTestCase(TestCase):
         └── a2
         """
         self.assertTrue(hasattr(a, "a1"))
-        # check that initial tree, and child tree reference the same nodes
-        self.assertIs(a._tree.get("a1"), obj._tree.get("a1"))
+        self.assertEqual(a._tree.get("a1"), obj._tree.get("a1"))
 
         # test representations
         self.assertEqual(
