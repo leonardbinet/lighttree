@@ -98,16 +98,12 @@ def get_sample_custom_tree():
 
 
 class CustomNode(Node):
-    def __init__(self, identifier, key, _children=None):
+    def __init__(self, identifier, key):
         self.key = key
-        super(CustomNode, self).__init__(identifier=identifier, _children=_children)
+        super(CustomNode, self).__init__(identifier=identifier)
 
     def clone(self, deep=False):
-        return self.__class__(
-            identifier=self.identifier,
-            _children=[c.clone(deep=deep) for c in self._children],
-            key=self.key,
-        )
+        return self.__class__(identifier=self.identifier, key=self.key,)
 
     def serialize(self, *args, **kwargs):
         with_key = kwargs.pop("with_key", None)

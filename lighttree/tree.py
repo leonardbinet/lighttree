@@ -71,7 +71,7 @@ class Tree(object):
             )
 
     def _validate_tree_insertion(self, tree):
-        if not isinstance(tree, self.__class__):
+        if not isinstance(tree, Tree):
             raise ValueError(
                 "Tree must be instance of <%s>, got <%s>"
                 % (self.__class__.__name__, type(tree))
@@ -229,11 +229,6 @@ class Tree(object):
                 raise MultipleRootError("A tree takes one root merely.")
             self.root = node.identifier
             self._nodes_map[node.identifier] = node
-            for child in node._children:
-                self.insert(child, parent_id=node.identifier)
-            # reset _children attribute so that children nodes cannot be inserted multiple times
-            # rely on the fact that inserted nodes are copies, as handled in insert_node method
-            node._children = []
             return
 
         self._ensure_present(parent_id)
@@ -241,11 +236,6 @@ class Tree(object):
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
         self._nodes_children[parent_id].add(node_id)
-        for child in node._children or []:
-            self.insert(child, parent_id=node.identifier)
-        # reset _children attribute so that children nodes cannot be inserted multiple times
-        # rely on the fact that inserted nodes are copies, as handled in insert_node method
-        node._children = []
 
     def _insert_node_above(self, node, child_id):
         self._ensure_present(child_id)
