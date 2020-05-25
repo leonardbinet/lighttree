@@ -70,7 +70,7 @@ class TreeCase(TestCase):
         node_a = Node("a")
         t.insert_node(node_a, parent_id="root_id")
         self.assertSetEqual(set(t._nodes_map.keys()), {"root_id", "a"})
-        self.assertIs(t._nodes_map["a"], node_a)
+        self.assertEqual(t._nodes_map["a"], node_a)
         self.assertEqual(t._nodes_parent["root_id"], None)
         self.assertEqual(t._nodes_parent["a"], "root_id")
         self.assertSetEqual(t._nodes_children["a"], set())
@@ -245,7 +245,7 @@ class TreeCase(TestCase):
         self.assertIs(t.mutable_object, t_shallow_clone.mutable_object)
         # nodes are shallow copies
         for nid, node in iteritems(t._nodes_map):
-            self.assertIs(t_shallow_clone._nodes_map[nid], node)
+            self.assertEqual(t_shallow_clone._nodes_map[nid], node)
         tree_sanity_check(t)
         tree_sanity_check(t_shallow_clone)
 
@@ -637,7 +637,7 @@ class TreeCase(TestCase):
         )
         self.assertTrue(all(nid in t for nid in ("c", "c1", "c2", "c12")))
         # by default pasted new tree is a shallow copy
-        self.assertIs(t.get("c"), t_to_paste.get("c"))
+        self.assertEqual(t.get("c"), t_to_paste.get("c"))
 
         # cannot repaste tree, because then there would be node duplicates
         with self.assertRaises(DuplicatedNodeError):
@@ -779,8 +779,7 @@ class TreeCase(TestCase):
         # new tree root is not conserved
         self.assertTrue("c" not in t)
         self.assertTrue(all(nid in t for nid in ("c1", "c2", "c12")))
-        # by default merged new tree is a shallow copy
-        self.assertIs(t.get("c1"), t_to_merge.get("c1"))
+        self.assertEqual(t.get("c1"), t_to_merge.get("c1"))
 
         # cannot remerge tree, because then there would be node duplicates
         with self.assertRaises(DuplicatedNodeError):
@@ -888,58 +887,5 @@ class TreeCase(TestCase):
             """a1
 ├── a11
 └── a12
-""",
-        )
-
-    def test_node_hierarchy_deserialization(self):
-        node_hierarchy = Node(
-            identifier="root",
-            _children=[
-                Node(
-                    identifier="a",
-                    _children=[Node(identifier="a1"), Node(identifier="a2")],
-                ),
-                Node(identifier="b", _children=[Node(identifier="b1")]),
-            ],
-        )
-        t = Tree()
-        t.insert(node_hierarchy)
-        self.assertEqual(
-            t.show(),
-            """root
-├── a
-│   ├── a1
-│   └── a2
-└── b
-    └── b1
-""",
-        )
-
-    def test_node_hierarchy_with_tree_deserialization(self):
-        node_hierarchy = Node(
-            identifier="root",
-            _children=[
-                Node(
-                    identifier="a",
-                    _children=[Node(identifier="a1"), Node(identifier="a2")],
-                ),
-                Node(identifier="b", _children=[Node(identifier="b1")]),
-                get_sample_tree_2(),
-            ],
-        )
-        t = Tree()
-        t.insert(node_hierarchy)
-        self.assertEqual(
-            t.show(),
-            """root
-├── a
-│   ├── a1
-│   └── a2
-├── b
-│   └── b1
-└── c
-    ├── c1
-    │   └── c12
-    └── c2
 """,
         )

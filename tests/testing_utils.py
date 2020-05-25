@@ -102,6 +102,9 @@ class CustomNode(Node):
         self.key = key
         super(CustomNode, self).__init__(identifier=identifier)
 
+    def clone(self, deep=False):
+        return self.__class__(identifier=self.identifier, key=self.key,)
+
     def serialize(self, *args, **kwargs):
         with_key = kwargs.pop("with_key", None)
         d = super(CustomNode, self).serialize()

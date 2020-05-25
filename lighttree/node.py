@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+# -*- coding: utf-8 -*-
 
 from __future__ import unicode_literals
+import copy
 from future.utils import python_2_unicode_compatible, string_types
 
 import uuid
@@ -8,7 +10,7 @@ import uuid
 
 @python_2_unicode_compatible
 class Node(object):
-    def __init__(self, identifier=None, auto_uuid=False, _children=None):
+    def __init__(self, identifier=None, auto_uuid=False):
         """
         :param identifier: node identifier, must be unique per tree
         """
@@ -22,17 +24,14 @@ class Node(object):
                 raise ValueError("Required identifier")
             identifier = uuid.uuid4()
         self.identifier = identifier
-        # children type is not checked here, it is at insertion in tree
-        # only allowed types should be Node, or Tree, but cannot ensure whether it's a Tree since it would cause
-        # a recursive import error
-        if _children is not None and not isinstance(_children, (list, tuple)):
-            raise ValueError("Invalid children declaration.")
-        self._children = _children
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
         """
         return self.identifier
+
+    def clone(self, deep=False):
+        return copy.deepcopy(self) if deep else copy.copy(self)
 
     def serialize(self, *args, **kwargs):
         return {"identifier": self.identifier}
@@ -46,6 +45,11 @@ class Node(object):
     @classmethod
     def _deserialize(cls, d, *args, **kwargs):
         return cls(d.get("identifier"))
+
+    def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
+        return self.identifier == other.identifier
 
     def __str__(self):
         return "%s, id=%s" % (self.__class__.__name__, self.identifier)
