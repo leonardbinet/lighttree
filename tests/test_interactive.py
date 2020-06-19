@@ -192,7 +192,7 @@ class TreeBasedObjTestCase(TestCase):
 
         # test representations
         self.assertEqual(
-            obj.__str__(),
+            obj._show(),
             """<SomeCoolTree>
 root
 ├── a
@@ -205,7 +205,7 @@ root
 """,
         )
         self.assertEqual(
-            a.__str__(),
+            a._show(),
             """<SomeCoolTree subpart: a>
 a
 ├── a1
@@ -215,7 +215,7 @@ a
 """,
         )
         self.assertEqual(
-            a.a1.__str__(),
+            a.a1._show(),
             """<SomeCoolTree subpart: a.a1>
 a1
 ├── a11
