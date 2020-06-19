@@ -192,7 +192,7 @@ class TreeBasedObj(Obj):
             r._expand_attrs(depth=1)
         return r
 
-    def __str__(self):
+    def _show(self):
         tree_repr = self._tree.show()
         if self._root_path is None:
             return "<%s>\n%s" % (
@@ -205,3 +205,6 @@ class TreeBasedObj(Obj):
             text(current_path),
             text(tree_repr),
         )
+
+    def __str__(self):
+        return self._show()
