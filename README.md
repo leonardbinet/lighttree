@@ -1,4 +1,5 @@
 [![PyPI Latest Release](https://img.shields.io/pypi/v/lighttree.svg)](https://pypi.org/project/lighttree/)
+[![License](https://img.shields.io/pypi/l/lighttree.svg)](https://github.com/leonardbinet/lighttree/blob/master/LICENSE)
 ![Python package](https://github.com/leonardbinet/lighttree/workflows/Python%20package/badge.svg)
 
 
