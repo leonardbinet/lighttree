@@ -31,11 +31,20 @@ class Tree(object):
         return identifier in self._nodes_map
 
     def get(self, nid):
-        """Get a node by its id."""
+        """Get a node by its id.
+        :param nid: str, identifier of node to fetch
+        :rtype: lighttree.node.Node
+        """
         self._ensure_present(nid)
         return self._nodes_map[nid]
 
     def list(self, id_in=None, depth_in=None, filter_=None):
+        """List nodes.
+        :param id_in: list of str, optional, filter nodes among provided identifiers
+        :param depth_in: list of int, optional, filter nodes whose depth in tree is among provided values
+        :param filter\_: function, optional, filtering function to apply to each node
+        :rtype: list of lighttree.node.Node
+        """
         return [
             node
             for nid, node in iteritems(self._nodes_map)
@@ -45,7 +54,9 @@ class Tree(object):
         ]
 
     def is_empty(self):
-        """Return whether tree is empty (contains nodes) or not."""
+        """Return whether tree is empty (contains nodes) or not.
+        :rtype: bool
+        """
         return self.root is None
 
     def _ensure_present(self, nid, defaults_to_root=False, allow_empty=False):
@@ -97,6 +108,8 @@ class Tree(object):
         >>> subtree = my_custom_tree.subtree()
         >>> subtree.tree_description
         "smart tree"
+
+        :param: deep, boolean, in case of composition should its potential elements be deep copied or not.
         """
         return self.__class__()
 
@@ -405,8 +418,7 @@ class Tree(object):
         """Return tree structure in hierarchy style.
 
         :param nid: Node identifier from which tree traversal will start. If None tree root will be used
-        :param filter_: filter function performed on nodes. Nodes excluded from filter function nor their children
-        won't be displayed
+        :param filter_: filter function performed on nodes. Nodes excluded from filter function nor their children won't be displayed
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :param key: key used to order nodes of same parent
         :param reverse: reverse parameter applied at sorting
@@ -414,6 +426,7 @@ class Tree(object):
         :param limit: int, truncate tree display to this number of lines
         :param kwargs: kwargs params passed to node ``line_repr`` method
         :rtype: unicode in python2, str in python3
+
         """
         output = ""
 
@@ -502,6 +515,7 @@ class Tree(object):
         """Merge "new_tree" on current tree by pasting its root children on current tree "nid" node.
 
         Consider the following trees:
+
         >>> self.show()
         root
         ├── A
@@ -514,8 +528,8 @@ class Tree(object):
 
         Merging new_tree on B node:
 
-        >>>self.merge(new_tree, 'B')
-        >>>self.show()
+        >>> self.merge(new_tree, 'B')
+        >>> self.show()
         root
         ├── A
         └── B
@@ -525,6 +539,7 @@ class Tree(object):
 
         Note: if current tree is empty and nid is None, the new_tree root will be used as root on current tree. In all
         other cases new_tree root is not pasted.
+
         """
         if not isinstance(new_tree, self.__class__):
             raise ValueError(
