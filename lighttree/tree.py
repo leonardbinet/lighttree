@@ -418,7 +418,7 @@ class Tree(object):
         """Return tree structure in hierarchy style.
 
         :param nid: Node identifier from which tree traversal will start. If None tree root will be used
-        :param filter_: filter function performed on nodes. Nodes excluded from filter function nor their children won't be displayed
+        :param filter\_: filter function performed on nodes. Nodes excluded from filter function nor their children won't be displayed
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :param key: key used to order nodes of same parent
         :param reverse: reverse parameter applied at sorting
