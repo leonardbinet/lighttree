@@ -455,8 +455,27 @@ class TreeCase(TestCase):
             ["a12", "a2"],
         )
 
-    def test_show(self):
+    def test_iter_nodes_with_location(self):
         t = get_sample_tree()
+
+        # full
+        self.assertEqual(
+            list(
+                t._iter_nodes_with_location(
+                    nid=None, filter_=None, key=None, reverse=False
+                )
+            ),
+            [
+                ((), t.get("root")),
+                ((False,), t.get("a")),
+                ((False, False), t.get("a1")),
+                ((False, False, False), t.get("a11")),
+                ((False, False, True), t.get("a12")),
+                ((False, True), t.get("a2")),
+                ((True,), t.get("b")),
+                ((True, True), t.get("b1")),
+            ],
+        )
         self.assertEqual(
             t.show(),
             """root
@@ -470,16 +489,24 @@ class TreeCase(TestCase):
 """,
         )
 
+        # subtree
         self.assertEqual(
-            t.show("a"),
-            """a
-├── a1
-│   ├── a11
-│   └── a12
-└── a2
+            list(
+                t._iter_nodes_with_location(
+                    nid="a1", filter_=None, key=None, reverse=False
+                )
+            ),
+            [((), t.get("a1")), ((False,), t.get("a11")), ((True,), t.get("a12"))],
+        )
+        self.assertEqual(
+            t.show("a1"),
+            """a1
+├── a11
+└── a12
 """,
         )
 
+    def test_show(self):
         t = get_sample_custom_tree()
         self.assertEqual(
             t.show(),

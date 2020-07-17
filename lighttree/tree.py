@@ -360,8 +360,7 @@ class Tree(object):
     ):
         """Python generator traversing the tree (or a subtree) with optional node filtering.
 
-        Loosely based on an algorithm from 'Essential LISP' by John R. Anderson,
-        Albert T. Corbett, and Brian J. Reiser, page 239-241, and inspired from treelib implementation.
+        Inspired by treelib implementation https://github.com/caesar0301/treelib/blob/master/treelib/tree.py#L374
 
         :param nid: Node identifier from which tree traversal will start. If None tree root will be used
         :param mode: Traversal mode, may be either "depth" or "width"
@@ -369,6 +368,7 @@ class Tree(object):
         :param filter_through: if True, excluded nodes don't exclude their children.
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :param key: key used to order nodes of same parent
+        :param id_only: if True node ids will be yielded, else nodes themselves
         :return: node ids that satisfy the conditions if ``id_only`` is True, else nodes.
         :rtype: generator
         """
@@ -430,10 +430,11 @@ class Tree(object):
         """
         output = ""
 
-        for depth, prefix, node in self._line_repr_iter(
-            nid, filter_, key, reverse, line_type
+        for is_last_list, node in self._iter_nodes_with_location(
+            nid, filter_, key, reverse
         ):
-            node_repr = node.line_repr(depth=depth, **kwargs)
+            prefix = self._prefix_repr(line_type, is_last_list)
+            node_repr = node.line_repr(depth=len(is_last_list), **kwargs)
             output += "%s%s\n" % (prefix, node_repr)
             if limit is not None:
                 limit -= 1
@@ -444,9 +445,15 @@ class Tree(object):
                     return output
         return output
 
-    def _line_repr_iter(
-        self, nid, filter_, key, reverse, line_type, depth=0, is_last_list=None
-    ):
+    def _iter_nodes_with_location(self, nid, filter_, key, reverse, is_last_list=None):
+        """Yield nodes with information on how they are placed.
+        :param nid: starting node identifier
+        :param filter_: filter function applied on nodes
+        :param key: key used to order nodes of same parent
+        :param reverse: reverse parameter applied at sorting
+        :param is_last_list: list of booleans, each indicating if node is the last yielded one at this depth
+        :return: tuple of booleans, node
+        """
         is_last_list = is_last_list or []
         key = attrgetter("identifier") if key is None else key
 
@@ -454,8 +461,7 @@ class Tree(object):
         if nid is not None:
             node = self.get(nid)
             if filter_ is None or filter_(node):
-                prefix = self._prefix_repr(line_type, is_last_list)
-                yield depth, prefix, node
+                yield tuple(is_last_list), node
                 children = [
                     child_node
                     for child_node in self.children(nid, id_only=False)
@@ -465,14 +471,8 @@ class Tree(object):
                 children.sort(key=key, reverse=reverse)
                 for idx, child in enumerate(children):
                     is_last_list.append(idx == idxlast)
-                    for item in self._line_repr_iter(
-                        child.identifier,
-                        filter_,
-                        key,
-                        reverse,
-                        line_type,
-                        depth + 1,
-                        is_last_list,
+                    for item in self._iter_nodes_with_location(
+                        child.identifier, filter_, key, reverse, is_last_list,
                     ):
                         yield item
                     is_last_list.pop()
