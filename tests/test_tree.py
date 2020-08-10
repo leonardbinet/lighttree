@@ -564,12 +564,6 @@ class TreeCase(TestCase):
     def test_insert_tree_below(self):
         t = get_sample_tree()
 
-        # cannot insert tree not instance of initial tree
-        with self.assertRaises(ValueError):
-            t_custom = get_sample_custom_tree()
-            t_custom._insert_tree_below(get_sample_tree(), "a1", False)
-        tree_sanity_check(t_custom)
-
         # insert subtree
         t_to_paste = get_sample_tree_2()
         t._insert_tree_below(new_tree=t_to_paste, parent_id="b", deep=False)
