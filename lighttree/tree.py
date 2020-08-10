@@ -71,11 +71,8 @@ class Tree(object):
         return nid
 
     def _validate_node_insertion(self, node):
-        if not isinstance(node, self.node_class):
-            raise ValueError(
-                "Node must be instance of <%s>, got <%s>."
-                % (self.node_class.__name__, type(node))
-            )
+        if not isinstance(node, Node):
+            raise ValueError("Node must be instance of <Node>, got <%s>." % type(node))
         if node.identifier in self._nodes_map.keys():
             raise DuplicatedNodeError(
                 "Can't create node with id '%s'" % node.identifier
