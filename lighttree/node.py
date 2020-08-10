@@ -33,19 +33,6 @@ class Node(object):
     def clone(self, deep=False):
         return copy.deepcopy(self) if deep else copy.copy(self)
 
-    def serialize(self, *args, **kwargs):
-        return {"identifier": self.identifier}
-
-    @classmethod
-    def deserialize(cls, d, *args, **kwargs):
-        if not isinstance(d, dict):
-            raise ValueError("Deserialization requires a dict.")
-        return cls._deserialize(d, *args, **kwargs)
-
-    @classmethod
-    def _deserialize(cls, d, *args, **kwargs):
-        return cls(d.get("identifier"))
-
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
