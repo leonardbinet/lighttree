@@ -491,26 +491,6 @@ class Tree(object):
         lasting = dt_line_corner if is_last_list[-1] else dt_line_box
         return leading + lasting
 
-    def serialize(self, *args, **kwargs):
-        return {
-            "nodes_children": {
-                nid: list(sorted(list(children_ids)))
-                for nid, children_ids in iteritems(self._nodes_children)
-                if children_ids
-            },
-            "nodes_parent": dict(self._nodes_parent),
-            "node_class": ".".join(
-                [self.node_class.__module__, self.node_class.__name__]
-            ),
-            "tree_class": ".".join(
-                [self.__class__.__module__, self.__class__.__name__]
-            ),
-            "nodes_map": {
-                nid: node.serialize(*args, **kwargs)
-                for nid, node in iteritems(self._nodes_map)
-            },
-        }
-
     def merge(self, new_tree, nid=None, deep=False):
         """Merge "new_tree" on current tree by pasting its root children on current tree "nid" node.
 
