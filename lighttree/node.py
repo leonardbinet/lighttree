@@ -10,7 +10,9 @@ import uuid
 
 @python_2_unicode_compatible
 class Node(object):
-    def __init__(self, identifier=None, auto_uuid=False):
+    def __init__(
+        self, identifier=None, auto_uuid=False, keyed=True, accept_children=True
+    ):
         """
         :param identifier: node identifier, must be unique per tree
         """
@@ -24,6 +26,8 @@ class Node(object):
                 raise ValueError("Required identifier")
             identifier = uuid.uuid4()
         self.identifier = identifier
+        self.keyed = keyed
+        self.accept_children = accept_children
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
