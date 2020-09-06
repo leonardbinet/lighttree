@@ -24,8 +24,8 @@ from tests.testing_utils import (
 from future.utils import iteritems
 
 
-def to_ids_set(nodes):
-    return {n.identifier for n in nodes}
+def to_key_id(keyed_nodes):
+    return [(k, n.identifier) for k, n in keyed_nodes]
 
 
 class TreeCase(TestCase):
@@ -40,16 +40,16 @@ class TreeCase(TestCase):
     def test_insert_root(self):
         t = Tree()
         root_node = Node(identifier="a")
-        t._insert_node_below(root_node, None)
-        self.assertSetEqual(to_ids_set(t.list()), {"a"})
+        t.insert_node(root_node)
+        self.assertEqual(to_key_id(t.list()), {"a"})
         self.assertIs(t._nodes_map["a"], root_node)
         self.assertEqual(t._nodes_parent["a"], None)
-        self.assertSetEqual(t._nodes_children["a"], set())
+        self.assertListEqual(t._nodes_children_list["a"], list())
         tree_sanity_check(t)
 
         # cannot add second root
         with self.assertRaises(MultipleRootError):
-            t._insert_node_below(Node(identifier="b"), None)
+            t.insert_node(Node(identifier="b"))
         self.assertSetEqual(to_ids_set(t.list()), {"a"})
         tree_sanity_check(t)
 
@@ -73,8 +73,8 @@ class TreeCase(TestCase):
         self.assertEqual(t._nodes_map["a"], node_a)
         self.assertEqual(t._nodes_parent["root_id"], None)
         self.assertEqual(t._nodes_parent["a"], "root_id")
-        self.assertSetEqual(t._nodes_children["a"], set())
-        self.assertSetEqual(t._nodes_children["root_id"], {"a"})
+        self.assertListEqual(t._nodes_children_list["a"], list())
+        self.assertListEqual(t._nodes_children_list["root_id"], ["a"])
         tree_sanity_check(t)
 
         # try to insert node with same id than existing node
@@ -134,32 +134,30 @@ class TreeCase(TestCase):
 
     def test_contains(self):
         t = get_sample_tree()
-        self.assertTrue("a12" in t)
+        self.assertTrue("aa1" in t)
         self.assertFalse("yolo_id" in t)
 
     def test_get(self):
         t = get_sample_tree()
         with self.assertRaises(NotFoundNodeError):
             t.get("not_existing_id")
-        self.assertIs(t.get("a"), t._nodes_map["a"])
+        k, n = t.get("ab")
+        self.assertIs(n, t._nodes_map["ab"])
+        self.assertEqual(k, "b")
+
+        k, n = t.get("aa2")
+        self.assertIs(n, t._nodes_map["aa2"])
+        self.assertEqual(k, 1)
 
     def test_list(self):
         t = get_sample_tree()
 
-        self.assertEqual(to_ids_set(t.list(id_in=["a", "b"])), {"a", "b"})
+        self.assertEqual(to_key_id(t.list(id_in=["a", "c"])), [("a", "a"), ("c", "c")])
         self.assertEqual(
-            to_ids_set(t.list(depth_in=[0, 2])), {"root", "a1", "a2", "b1"}
+            to_key_id(t.list(depth_in=[0, 2])),
+            [(None, "root"), ("a", "aa"), ("b", "ab"), (0, "c0"), (1, "c1")],
         )
-        self.assertEqual(to_ids_set(t.list(id_in=["a", "a1"], depth_in=[1])), {"a"})
-
-        t2 = get_sample_custom_tree()
-        self.assertEqual(
-            to_ids_set(t2.list(filter_=lambda x: x.key > 5)),
-            {"a11", "a1", "root", "a12", "a2", "a"},
-        )
-        self.assertEqual(
-            to_ids_set(t2.list(id_in=["a", "b"], filter_=lambda x: x.key > 5)), {"a"}
-        )
+        self.assertEqual(to_key_id(t.list(depth_in=[3])), [(0, "aa1"), (1, "aa2")])
 
     def test_is_empty(self):
         self.assertTrue(Tree().is_empty())
@@ -227,134 +225,107 @@ class TreeCase(TestCase):
         )
 
     def test_clone_with_tree(self):
-        t = get_sample_custom_tree()
+        t = get_sample_tree()
 
         # deep = False
-        t_shallow_clone = t.clone(with_tree=True)
-        self.assertIsInstance(t_shallow_clone, TreeWithComposition)
+        t_shallow_clone = t.clone(with_nodes=True)
+        self.assertIsInstance(t_shallow_clone, Tree)
         self.assertIsNot(t_shallow_clone, t)
         self.assertFalse(t_shallow_clone.is_empty())
         self.assertIsNot(t_shallow_clone._nodes_map, t._nodes_map)
         self.assertEqual(t_shallow_clone._nodes_map, t._nodes_map)
         self.assertIsNot(t_shallow_clone._nodes_parent, t._nodes_parent)
         self.assertDefaultDictEqual(t_shallow_clone._nodes_parent, t._nodes_parent)
-        self.assertIsNot(t_shallow_clone._nodes_children, t._nodes_children)
-        self.assertDefaultDictEqual(t_shallow_clone._nodes_children, t._nodes_children)
-        # based on TreeWithComposition._clone_init method
-        self.assertTrue(t_shallow_clone.is_cool)
-        self.assertIs(t.mutable_object, t_shallow_clone.mutable_object)
+        self.assertIsNot(t_shallow_clone._nodes_children_list, t._nodes_children_list)
+        self.assertDefaultDictEqual(
+            t_shallow_clone._nodes_children_list, t._nodes_children_list
+        )
+
         # nodes are shallow copies
         for nid, node in iteritems(t._nodes_map):
-            self.assertEqual(t_shallow_clone._nodes_map[nid], node)
+            self.assertIs(t_shallow_clone._nodes_map[nid], node)
         tree_sanity_check(t)
         tree_sanity_check(t_shallow_clone)
 
         # deep = True
-        t_custom_deep_clone = t.clone(with_tree=True, deep=True)
-        self.assertIsNot(t.mutable_object, t_custom_deep_clone.mutable_object)
-        # nodes are deep copies
+        t_custom_deep_clone = t.clone(deep=True)
         for nid, node in iteritems(t_custom_deep_clone._nodes_map):
             self.assertIsNot(t._nodes_map[nid], node)
 
     def test_clone_with_subtree(self):
-        t = get_sample_custom_tree()
+        t = get_sample_tree()
 
-        t_clone = t.clone(with_tree=True, new_root="a")
-        self.assertIsInstance(t_clone, TreeWithComposition)
+        t_clone = t.clone(with_nodes=True, new_root="a")
+        tree_sanity_check(t)
+        tree_sanity_check(t_clone)
+        self.assertIsInstance(t_clone, Tree)
         self.assertIsNot(t_clone, t)
         self.assertFalse(t_clone.is_empty())
         self.assertSetEqual(
-            set(t_clone._nodes_map.keys()), {"a", "a1", "a2", "a11", "a12"}
+            set(t_clone._nodes_map.keys()), {"a", "aa", "ab", "aa1", "aa2"}
         )
-        self.assertDefaultDictEqual(
-            t_clone._nodes_parent,
-            defaultdict(
-                lambda: None,
-                {"a": None, "a1": "a", "a2": "a", "a11": "a1", "a12": "a1"},
-            ),
+        self.assertEqual(
+            t_clone.show(),
+            """a
+├── aa
+│   ├── aa1
+│   └── aa2
+└── ab
+""",
         )
-        self.assertDefaultDictEqual(
-            t_clone._nodes_children,
-            defaultdict(
-                set,
-                {
-                    "a": {"a1", "a2"},
-                    "a1": {"a11", "a12"},
-                    "a2": set(),
-                    "a11": set(),
-                    "a12": set(),
-                },
-            ),
-        )
-
-        # based on TreeWithComposition._clone_init method
-        self.assertTrue(t_clone.is_cool)
-        self.assertIs(t.mutable_object, t_clone.mutable_object)
         # nodes are shallow copies
-        for nid, node in iteritems(t_clone._nodes_map):
-            self.assertIs(t_clone._nodes_map[nid], node)
-        tree_sanity_check(t)
-        tree_sanity_check(t_clone)
+        for _, node in t_clone.list():
+            self.assertIs(node, t.get(node.identifier)[1])
 
     def test_empty_clone(self):
-        t = get_sample_custom_tree()
+        t = get_sample_tree()
 
         # deep = False
-        t_shallow_empty_clone = t.clone(with_tree=False)
-        self.assertIsInstance(t_shallow_empty_clone, TreeWithComposition)
+        t_shallow_empty_clone = t.clone(with_nodes=False)
+        self.assertIsInstance(t_shallow_empty_clone, Tree)
         self.assertIsNot(t_shallow_empty_clone, t)
         self.assertTrue(t_shallow_empty_clone.is_empty())
         tree_sanity_check(t)
         tree_sanity_check(t_shallow_empty_clone)
-        self.assertTrue(t.is_cool)
-        self.assertEqual(t_shallow_empty_clone.mutable_object, [1, 2])
-        # not a deepcopy
-        self.assertIs(t.mutable_object, t_shallow_empty_clone.mutable_object)
-
-        # empty clone with deep copy
-        t_empty_deep_clone = t.clone(with_tree=False, deep=True)
-        self.assertIsNot(t.mutable_object, t_empty_deep_clone.mutable_object)
 
     def test_parent(self):
         t = get_sample_tree()
-        self.assertEqual(t.parent("root"), None)
-        self.assertEqual(t.parent("a"), "root")
-        self.assertEqual(t.parent("a1"), "a")
-        self.assertEqual(t.parent("b1"), "b")
+        self.assertEqual(t.parent_id("root"), None)
+        self.assertEqual(t.parent_id("a"), "root")
+        self.assertEqual(t.parent_id("ab"), "a")
+        self.assertEqual(t.parent_id("c1"), "c")
         with self.assertRaises(NotFoundNodeError):
-            t.parent("non-existing-id")
-        self.assertIs(t.parent("a", id_only=False), t._nodes_map["root"])
+            t.parent_id("non-existing-id")
+        self.assertIs(t.parent_id("a", id_only=False), t._nodes_map["root"])
 
     def test_children(self):
         t = get_sample_tree()
-        self.assertEqual(set(t.children("root")), {"a", "b"})
-        self.assertEqual(set(t.children("a")), {"a1", "a2"})
-        self.assertEqual(t.children("b"), ["b1"])
-        self.assertEqual(set(t.children("a1")), {"a11", "a12"})
-        self.assertEqual(t.children("b1"), [])
+        self.assertEqual(set(t.children_ids("root")), {"a", "c"})
+        self.assertEqual(set(t.children_ids("a")), {"aa", "ab"})
+        self.assertEqual(t.children_ids("c"), ["c0", "c1"])
+        self.assertEqual(set(t.children_ids("aa")), {"aa1", "aa2"})
+        self.assertEqual(t.children_ids("c1"), [])
         with self.assertRaises(NotFoundNodeError):
-            t.children("non-existing-id")
-        self.assertIs(next(iter(t.children("b", id_only=False))), t._nodes_map["b1"])
+            t.children_ids("non-existing-id")
 
     def test_siblings(self):
         t = get_sample_tree()
-        self.assertEqual(t.siblings("root"), [])
-        self.assertEqual(t.siblings("a"), ["b"])
-        self.assertEqual(t.siblings("b"), ["a"])
-        self.assertEqual(t.siblings("a1"), ["a2"])
-        self.assertEqual(t.siblings("b1"), [])
+        self.assertEqual(t.siblings_ids("root"), [])
+        self.assertEqual(t.siblings_ids("a"), ["c"])
+        self.assertEqual(t.siblings_ids("c"), ["a"])
+        self.assertEqual(t.siblings_ids("aa1"), ["aa2"])
+        self.assertEqual(t.siblings_ids("c1"), ["c0"])
         with self.assertRaises(NotFoundNodeError):
-            t.siblings("non-existing-id")
-        self.assertIs(next(iter(t.siblings("b", id_only=False))), t._nodes_map["a"])
+            t.siblings_ids("non-existing-id")
 
     def test_is_leaf(self):
         t = get_sample_tree()
         self.assertFalse(t.is_leaf("root"))
         self.assertFalse(t.is_leaf("a"))
-        self.assertFalse(t.is_leaf("b"))
-        self.assertTrue(t.is_leaf("a11"))
-        self.assertTrue(t.is_leaf("a12"))
-        self.assertTrue(t.is_leaf("b1"))
+        self.assertFalse(t.is_leaf("c"))
+        self.assertTrue(t.is_leaf("aa1"))
+        self.assertTrue(t.is_leaf("aa2"))
+        self.assertTrue(t.is_leaf("c1"))
         with self.assertRaises(NotFoundNodeError):
             t.is_leaf("non-existing-id")
 
@@ -362,97 +333,139 @@ class TreeCase(TestCase):
         t = get_sample_tree()
         self.assertEqual(t.depth("root"), 0)
         self.assertEqual(t.depth("a"), 1)
-        self.assertEqual(t.depth("b"), 1)
-        self.assertEqual(t.depth("a1"), 2)
-        self.assertEqual(t.depth("a2"), 2)
-        self.assertEqual(t.depth("b1"), 2)
+        self.assertEqual(t.depth("c"), 1)
+        self.assertEqual(t.depth("aa"), 2)
+        self.assertEqual(t.depth("aa1"), 3)
+        self.assertEqual(t.depth("ab"), 2)
+        self.assertEqual(t.depth("c1"), 2)
         with self.assertRaises(NotFoundNodeError):
             t.depth("non-existing-id")
 
     def test_ancestors(self):
         t = get_sample_tree()
-        self.assertEqual(t.ancestors("root"), [])
-        self.assertEqual(t.ancestors("a"), ["root"])
-        self.assertEqual(t.ancestors("b"), ["root"])
-        self.assertEqual(t.ancestors("a1"), ["a", "root"])
-        self.assertEqual(t.ancestors("a1", from_root=True), ["root", "a"])
-        self.assertEqual(t.ancestors("a2"), ["a", "root"])
-        self.assertEqual(t.ancestors("a2", from_root=True), ["root", "a"])
-        self.assertEqual(t.ancestors("b1"), ["b", "root"])
-        self.assertEqual(t.ancestors("b1", from_root=True), ["root", "b"])
+        self.assertEqual(t.ancestors_ids("root"), [])
+        self.assertEqual(t.ancestors_ids("a"), ["root"])
+        self.assertEqual(t.ancestors_ids("a", include_current=True), ["a", "root"])
+        self.assertEqual(t.ancestors_ids("c"), ["root"])
+        self.assertEqual(t.ancestors_ids("c", include_current=True), ["c", "root"])
+        self.assertEqual(t.ancestors_ids("aa"), ["a", "root"])
+        self.assertEqual(t.ancestors_ids("aa", from_root=True), ["root", "a"])
+        self.assertEqual(
+            t.ancestors_ids("aa", from_root=True, include_current=True),
+            ["root", "a", "aa"],
+        )
+        self.assertEqual(t.ancestors_ids("ab"), ["a", "root"])
+        self.assertEqual(t.ancestors_ids("ab", from_root=True), ["root", "a"])
+        self.assertEqual(t.ancestors_ids("c1"), ["c", "root"])
+        self.assertEqual(t.ancestors_ids("c1", from_root=True), ["root", "c"])
 
         with self.assertRaises(NotFoundNodeError):
             t.ancestors("non-existing-id")
 
     def test_leaves(self):
         t = get_sample_tree()
-        self.assertEqual(set(t.leaves()), {"a11", "a12", "a2", "b1"})
-        self.assertEqual(set(t.leaves("a")), {"a11", "a12", "a2"})
-        self.assertEqual(t.leaves("a11"), ["a11"])
-        self.assertEqual(t.leaves("b"), ["b1"])
+        self.assertEqual(set(t.leaves_ids()), {"aa1", "aa2", "ab", "c0", "c1"})
+        self.assertEqual(set(t.leaves_ids("a")), {"aa1", "aa2", "ab"})
+        self.assertEqual(t.leaves_ids("aa1"), ["aa1"])
+        self.assertEqual(t.leaves_ids("c"), ["c0", "c1"])
 
     def test_expand_tree(self):
-        t = get_sample_custom_tree()
+        t = get_sample_tree()
 
         # depth mode
         self.assertEqual(
-            list(t.expand_tree()), ["root", "a", "a1", "a11", "a12", "a2", "b", "b1"]
+            to_key_id(list(t.expand_tree())),
+            [
+                (None, "root"),
+                ("a", "a"),
+                ("a", "aa"),
+                (0, "aa1"),
+                (1, "aa2"),
+                ("b", "ab"),
+                ("c", "c"),
+                (0, "c0"),
+                (1, "c1"),
+            ],
         )
         self.assertEqual(
-            list(t.expand_tree(reverse=True)),
-            ["root", "b", "b1", "a", "a2", "a1", "a12", "a11"],
+            to_key_id(list(t.expand_tree(reverse=True))),
+            [
+                (None, "root"),
+                ("c", "c"),
+                (1, "c1"),
+                (0, "c0"),
+                ("a", "a"),
+                ("b", "ab"),
+                ("a", "aa"),
+                (1, "aa2"),
+                (0, "aa1"),
+            ],
         )
-        # b's keys are lower (0 vs 1 for a's keys)
-        self.assertEqual(
-            list(t.expand_tree(key=attrgetter("key"))),
-            ["root", "b", "b1", "a", "a1", "a11", "a12", "a2"],
-        )
-        self.assertEqual(
-            list(t.expand_tree(key=attrgetter("key"), reverse=True)),
-            ["root", "a", "a2", "a1", "a12", "a11", "b", "b1"],
-        )
+
         # subtree
-        self.assertEqual(list(t.expand_tree(nid="a")), ["a", "a1", "a11", "a12", "a2"])
+        self.assertEqual(
+            to_key_id(list(t.expand_tree(nid="a"))),
+            [("a", "a"), ("a", "aa"), (0, "aa1"), (1, "aa2"), ("b", "ab")],
+        )
 
         # width mode
         self.assertEqual(
-            list(t.expand_tree(mode="width")),
-            ["root", "a", "b", "a1", "a2", "b1", "a11", "a12"],
+            to_key_id(list(t.expand_tree(mode="width"))),
+            [
+                (None, "root"),
+                ("a", "a"),
+                ("c", "c"),
+                ("a", "aa"),
+                ("b", "ab"),
+                (0, "c0"),
+                (1, "c1"),
+                (0, "aa1"),
+                (1, "aa2"),
+            ],
         )
         self.assertEqual(
-            list(t.expand_tree(mode="width", reverse=True)),
-            ["root", "b", "a", "b1", "a2", "a1", "a12", "a11"],
+            to_key_id(list(t.expand_tree(mode="width", reverse=True))),
+            [
+                (None, "root"),
+                ("c", "c"),
+                ("a", "a"),
+                (1, "c1"),
+                (0, "c0"),
+                ("b", "ab"),
+                ("a", "aa"),
+                (1, "aa2"),
+                (0, "aa1"),
+            ],
         )
-        # b's keys are lower (0 vs 1 for a's keys)
-        self.assertEqual(
-            list(t.expand_tree(mode="width", key=attrgetter("key"))),
-            ["root", "b", "a", "b1", "a1", "a2", "a11", "a12"],
-        )
-        self.assertEqual(
-            list(t.expand_tree(mode="width", key=attrgetter("key"), reverse=True)),
-            ["root", "a", "b", "a2", "a1", "b1", "a12", "a11"],
-        )
+
         # subtree
         self.assertEqual(
-            list(t.expand_tree(nid="a", mode="width")), ["a", "a1", "a2", "a11", "a12"]
+            to_key_id(list(t.expand_tree(nid="a", mode="width"))),
+            [("a", "a"), ("a", "aa"), ("b", "ab"), (0, "aa1"), (1, "aa2")],
         )
 
         # filter
         self.assertEqual(
-            list(t.expand_tree(filter_=lambda x: x.identifier in ("root", "b"))),
-            ["root", "b"],
+            to_key_id(
+                list(t.expand_tree(filter_=lambda k, x: x.identifier in ("root", "c")))
+            ),
+            [(None, "root"), ("c", "c")],
         )
 
         # without filter through
-        self.assertEqual(list(t.expand_tree(filter_=lambda x: "2" in x.identifier)), [])
+        self.assertEqual(
+            to_key_id(list(t.expand_tree(filter_=lambda k, x: "2" in x.identifier))), []
+        )
         # with filter through
         self.assertEqual(
-            list(
-                t.expand_tree(
-                    filter_=lambda x: "2" in x.identifier, filter_through=True
+            to_key_id(
+                list(
+                    t.expand_tree(
+                        filter_=lambda k, x: "2" in x.identifier, filter_through=True
+                    )
                 )
             ),
-            ["a12", "a2"],
+            [(1, "aa2")],
         )
 
     def test_iter_nodes_with_location(self):
@@ -462,7 +475,7 @@ class TreeCase(TestCase):
         self.assertEqual(
             list(
                 t._iter_nodes_with_location(
-                    nid=None, filter_=None, key=None, reverse=False
+                    nid=None, filter_=None, sort_key=None, reverse=False
                 )
             ),
             [
@@ -493,7 +506,7 @@ class TreeCase(TestCase):
         self.assertEqual(
             list(
                 t._iter_nodes_with_location(
-                    nid="a1", filter_=None, key=None, reverse=False
+                    nid="a1", filter_=None, sort_key=None, reverse=False
                 )
             ),
             [((), t.get("a1")), ((False,), t.get("a11")), ((True,), t.get("a12"))],
@@ -778,37 +791,42 @@ class TreeCase(TestCase):
     def test_drop_node(self):
         # drop with children
         t = get_sample_tree()
-        a1_node = t.drop_node("a1")
+        node_key, aa_node = t.drop_node("aa")
         tree_sanity_check(t)
-        self.assertIsInstance(a1_node, Node)
-        self.assertEqual(a1_node.identifier, "a1")
-        self.assertTrue(all(nid not in t for nid in ("a1", "a11", "a12")))
+        self.assertEqual(node_key, "a")
+        self.assertIsInstance(aa_node, Node)
+        self.assertEqual(aa_node.identifier, "aa")
+        self.assertTrue(all(nid not in t for nid in ("aa", "aa1", "aa2")))
         self.assertEqual(
             t.show(),
             """root
 ├── a
-│   └── a2
-└── b
-    └── b1
+│   └── ab
+└── c
+    ├── c0
+    └── c1
 """,
         )
 
-        # drop without children (rebase children to dropped node's parent)
+        # drop without children (rebase children to dropped node's parent), possible because node and its parent are of
+        # same type
         t2 = get_sample_tree()
-        a1_node = t2.drop_node("a1", with_children=False)
+        a_key, a_node = t2.drop_node("a", with_children=False)
         tree_sanity_check(t2)
-        self.assertIsInstance(a1_node, Node)
-        self.assertTrue(all(nid in t2 for nid in ("a11", "a12")))
-        self.assertTrue("a1" not in t2)
+        self.assertEqual(a_key, "a")
+        self.assertIsInstance(a_node, Node)
+        self.assertTrue(all(nid in t2 for nid in ("aa", "ab", "aa1", "aa2")))
+        self.assertTrue("a" not in t2)
         self.assertEqual(
             t2.show(),
             """root
-├── a
-│   ├── a11
-│   ├── a12
-│   └── a2
-└── b
-    └── b1
+├── aa
+│   ├── aa1
+│   └── aa2
+├── ab
+└── c
+    ├── c0
+    └── c1
 """,
         )
 
@@ -817,25 +835,39 @@ class TreeCase(TestCase):
         with self.assertRaises(MultipleRootError):
             t3.drop_node("root", with_children=False)
 
+        # drop without children impossible if node type and parent node type are different (because list keys are ints, map keys are str)
+        t4 = get_sample_tree()
+        with self.assertRaises(ValueError):
+            t4.drop_node("aa", with_children=False)
+
     def test_drop_subtree(self):
         t = get_sample_tree()
-        a1_subtree = t.drop_subtree("a1")
+        key, a1_subtree = t.drop_subtree("aa")
+        self.assertEqual(key, "a")
         self.assertIsInstance(a1_subtree, Tree)
-        self.assertTrue(all(nid in a1_subtree for nid in ("a1", "a11", "a12")))
-        self.assertTrue(all(nid not in t for nid in ("a1", "a11", "a12")))
+        self.assertEqual(
+            to_key_id(a1_subtree.list()), [(None, "aa"), (0, "aa1"), (1, "aa2")]
+        )
+        tree_sanity_check(t)
+        tree_sanity_check(a1_subtree)
+        self.assertEqual(
+            to_key_id(t.list()),
+            [(None, "root"), ("a", "a"), ("b", "ab"), ("c", "c"), (0, "c0"), (1, "c1")],
+        )
         self.assertEqual(
             t.show(),
             """root
 ├── a
-│   └── a2
-└── b
-    └── b1
+│   └── ab
+└── c
+    ├── c0
+    └── c1
 """,
         )
         self.assertEqual(
             a1_subtree.show(),
-            """a1
-├── a11
-└── a12
+            """aa
+├── aa1
+└── aa2
 """,
         )

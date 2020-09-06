@@ -10,10 +10,12 @@ def tree_sanity_check(tree):
     assert isinstance(tree, Tree)
     assert isinstance(tree._nodes_map, dict)
     assert isinstance(tree._nodes_parent, dict)
-    assert isinstance(tree._nodes_children, dict)
+    assert isinstance(tree._nodes_children_list, dict)
 
     assert all(nid in tree._nodes_map.keys() for nid in tree._nodes_parent.keys())
-    assert all(nid in tree._nodes_map.keys() for nid in tree._nodes_children.keys())
+    assert all(
+        nid in tree._nodes_map.keys() for nid in tree._nodes_children_list.keys()
+    )
 
     for nid, node in iteritems(tree._nodes_map):
         assert isinstance(nid, string_types)
@@ -23,35 +25,47 @@ def tree_sanity_check(tree):
             assert pid is None
         else:
             assert pid is not None
-            assert nid in tree._nodes_children[pid]
+            if tree._nodes_map[pid].keyed:
+                assert nid in tree._nodes_children_map[pid]
+                # ensure key is string
+                assert isinstance(tree._nodes_children_map[pid][nid], string_types)
+            else:
+                assert nid in tree._nodes_children_list[pid]
         # ensure all children have this node registered as parent
-        for cid in tree._nodes_children[nid]:
-            assert tree._nodes_parent[cid] == nid
+        if node.keyed:
+            for cid in tree._nodes_children_map[nid].keys():
+                assert tree._nodes_parent[cid] == nid
+        else:
+            for cid in tree._nodes_children_list[nid]:
+                assert tree._nodes_parent[cid] == nid
 
 
 # testing samples
 
 
-def get_sample_tree():
+def get_sample_tree(extra=False):
     """
-    root
-    ├── a
-    │   ├── a1
-    │   │   ├── a11
-    │   │   └── a12
-    │   └── a2
-    └── b
-        └── b1
+    root {}
+    ├── a {}
+    │   ├── aa []
+    │   │   ├── aa1
+    │   │   └── aa2
+    │   └── ab {}
+    └── c []
+        ├── c0
+        └── c1
     """
     t = Tree()
     t.insert_node(Node(identifier="root"))
-    t.insert_node(Node(identifier="a"), parent_id="root")
-    t.insert_node(Node(identifier="a1"), parent_id="a")
-    t.insert_node(Node(identifier="a2"), parent_id="a")
-    t.insert_node(Node(identifier="a11"), parent_id="a1")
-    t.insert_node(Node(identifier="a12"), parent_id="a1")
-    t.insert_node(Node(identifier="b"), parent_id="root")
-    t.insert_node(Node(identifier="b1"), parent_id="b")
+    t.insert_node(Node(identifier="a"), parent_id="root", key="a")
+    t.insert_node(Node(identifier="aa", keyed=False), parent_id="a", key="a")
+    t.insert_node(Node(identifier="aa1"), parent_id="aa")
+    t.insert_node(Node(identifier="aa2"), parent_id="aa")
+    t.insert_node(Node(identifier="ab"), parent_id="a", key="b")
+    t.insert_node(Node(identifier="c", keyed=False), parent_id="root", key="c")
+    t.insert_node(Node(identifier="c0"), parent_id="c")
+    t.insert_node(Node(identifier="c1"), parent_id="c")
+
     tree_sanity_check(t)
     return t
 
