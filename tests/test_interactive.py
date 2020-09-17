@@ -199,31 +199,31 @@ class TreeBasedObjTestCase(TestCase):
         self.assertEqual(
             obj._show(),
             """<SomeCoolTree>
-root
-├── a
-│   ├── aa
-│   │   ├── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+{}
+├── a: {}
+│   ├── a: []
+│   │   ├── AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
         self.assertEqual(
             a._show(),
             """<SomeCoolTree subpart: a>
-a
-├── aa
-│   ├── aa0
-│   └── aa1
-└── ab
+{}
+├── a: []
+│   ├── AA0
+│   └── AA1
+└── b: {}
 """,
         )
         self.assertEqual(
             a.a.i0._show(),
             """<SomeCoolTree subpart: a.a.0>
-aa0
+AA0
 """,
         )
 

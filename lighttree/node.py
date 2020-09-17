@@ -11,12 +11,17 @@ import uuid
 @python_2_unicode_compatible
 class Node(object):
     def __init__(
-        self, identifier=None, auto_uuid=False, keyed=True, accept_children=True
+        self,
+        identifier=None,
+        auto_uuid=False,
+        keyed=True,
+        accept_children=True,
+        repr_=None,
     ):
         """
         :param identifier: node identifier, must be unique per tree
         """
-        if not isinstance(identifier, string_types):
+        if identifier is not None and not isinstance(identifier, string_types):
             raise ValueError(
                 "Identifier must be a string type, provided type is <%s>"
                 % type(identifier)
@@ -28,11 +33,16 @@ class Node(object):
         self.identifier = identifier
         self.keyed = keyed
         self.accept_children = accept_children
+        self.repr = repr_
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
         """
-        return self.identifier
+        if self.repr is not None:
+            return self.repr
+        if self.keyed:
+            return "{}"
+        return "[]"
 
     def clone(self, deep=False):
         return copy.deepcopy(self) if deep else copy.copy(self)

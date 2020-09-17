@@ -86,11 +86,14 @@ class TreeCase(TestCase):
         t.insert_node(Node("initial_root"))
         t.insert_node(node=Node("new_root"), child_id="initial_root", key="between")
         self.assertEqual(t.root, "new_root")
+        self.assertEqual(
+            to_key_id(t.children("new_root")), [("between", "initial_root")]
+        )
         tree_sanity_check(t)
         self.assertEqual(
             t.show(),
-            """new_root
-└── initial_root
+            """{}
+└── between: {}
 """,
         )
 
@@ -100,16 +103,16 @@ class TreeCase(TestCase):
         self.assertTrue("new" in t)
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── new
-│   │   │   └── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── {}
+│   │   │   └── to: AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
         tree_sanity_check(t)
@@ -265,11 +268,11 @@ class TreeCase(TestCase):
         )
         self.assertEqual(
             t_clone.show(),
-            """a
-├── aa
-│   ├── aa0
-│   └── aa1
-└── ab
+            """{}
+├── a: []
+│   ├── AA0
+│   └── AA1
+└── b: {}
 """,
         )
         # nodes are shallow copies
@@ -510,24 +513,24 @@ class TreeCase(TestCase):
         t = get_sample_tree()
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
 
         # limit number of displayed nodes
         self.assertEqual(
             t.show(limit=3),
-            """root
-├── a
-│   ├── aa
+            """{}
+├── a: {}
+│   ├── a: []
 ...
 (truncated, total number of nodes: 9)
 """,
@@ -560,19 +563,19 @@ class TreeCase(TestCase):
         tree_sanity_check(t_to_paste)
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    ├── c1
-    └── broot
-        ├── b1
-        │   └── b1a
-        └── b2
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    ├── C1
+    └── []
+        ├── {}
+        │   └── a: {}
+        └── {}
 """,
         )
         self.assertTrue(all(nid in t for nid in ("broot", "b1", "b1a", "b2")))
@@ -595,15 +598,15 @@ class TreeCase(TestCase):
         tree_sanity_check(t)
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
 
@@ -632,19 +635,19 @@ class TreeCase(TestCase):
         self.assertTrue(all(nid in t for nid in {"broot", "b1", "b1a", "b2"}))
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── broot
-│   │   │   ├── b1
-│   │   │   │   └── b1a
-│   │   │   └── b2
-│   │   │       └── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── []
+│   │   │   ├── {}
+│   │   │   │   └── a: {}
+│   │   │   └── {}
+│   │   │       └── new-key: AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
 
@@ -658,18 +661,18 @@ class TreeCase(TestCase):
         tree_sanity_check(t2)
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── broot
-│   │   │   └── b1
-│   │   │       └── b1a
-│   │   │           └── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── []
+│   │   │   └── {}
+│   │   │       └── a: {}
+│   │   │           └── some_key: AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
 
@@ -683,18 +686,18 @@ class TreeCase(TestCase):
         tree_sanity_check(t_to_merge)
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   ├── aa
-│   │   ├── aa0
-│   │   └── aa1
-│   └── ab
-└── c
-    ├── b1
-    │   └── b1a
-    ├── b2
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   ├── a: []
+│   │   ├── AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── {}
+    │   └── a: {}
+    ├── {}
+    ├── C0
+    └── C1
 """,
         )
         # new tree root is not conserved
@@ -717,10 +720,10 @@ class TreeCase(TestCase):
         tree_sanity_check(t)
         self.assertEqual(
             t.show(),
-            """broot
-├── b1
-│   └── b1a
-└── b2
+            """[]
+├── {}
+│   └── a: {}
+└── {}
 """,
         )
         # in this case new_tree root is conserved since initial tree is empty
@@ -737,12 +740,12 @@ class TreeCase(TestCase):
         self.assertTrue(all(nid not in t for nid in ("aa", "aa0", "aa1")))
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
 
@@ -757,14 +760,14 @@ class TreeCase(TestCase):
         self.assertTrue("a" not in t2)
         self.assertEqual(
             t2.show(),
-            """root
-├── aa
-│   ├── aa0
-│   └── aa1
-├── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: []
+│   ├── AA0
+│   └── AA1
+├── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
 
@@ -794,19 +797,19 @@ class TreeCase(TestCase):
         )
         self.assertEqual(
             t.show(),
-            """root
-├── a
-│   └── ab
-└── c
-    ├── c0
-    └── c1
+            """{}
+├── a: {}
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
         self.assertEqual(
             a1_subtree.show(),
-            """aa
-├── aa0
-└── aa1
+            """[]
+├── AA0
+└── AA1
 """,
         )
 

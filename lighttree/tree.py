@@ -528,6 +528,7 @@ class Tree(object):
         nid=None,
         filter_=None,
         sort_key=None,
+        display_key=True,
         reverse=False,
         line_type="ascii-ex",
         limit=None,
@@ -539,6 +540,7 @@ class Tree(object):
         :param filter\_: filter function performed on nodes. Nodes excluded from filter function nor their children won't be displayed
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :param sort_key: key used to order nodes of same parent
+        :param display_key: boolean, if True display keyed nodes keys
         :param reverse: reverse parameter applied at sorting
         :param line_type: display type choice
         :param limit: int, truncate tree display to this number of lines
@@ -552,8 +554,14 @@ class Tree(object):
             nid, filter_, sort_key, reverse
         ):
             prefix = self._prefix_repr(line_type, is_last_list)
-            node_repr = node.line_repr(depth=len(is_last_list), **kwargs)
-            output += "%s%s\n" % (prefix, node_repr)
+            display_key_ = isinstance(key, string_types) and display_key
+            if display_key_:
+                prefix += key
+            node_repr = node.line_repr(
+                depth=len(is_last_list), prefix_len=len(prefix), **kwargs
+            )
+            inter = ": " if node_repr and display_key_ else ""
+            output += "%s%s%s\n" % (prefix, inter, node_repr)
             if limit is not None:
                 limit -= 1
                 if limit == 0:

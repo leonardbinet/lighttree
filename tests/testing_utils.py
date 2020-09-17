@@ -58,12 +58,12 @@ def get_sample_tree():
     t.insert_node(Node(identifier="root"))
     t.insert_node(Node(identifier="a"), parent_id="root", key="a")
     t.insert_node(Node(identifier="aa", keyed=False), parent_id="a", key="a")
-    t.insert_node(Node(identifier="aa0"), parent_id="aa")
-    t.insert_node(Node(identifier="aa1"), parent_id="aa")
+    t.insert_node(Node(identifier="aa0", repr_="AA0"), parent_id="aa")
+    t.insert_node(Node(identifier="aa1", repr_="AA1"), parent_id="aa")
     t.insert_node(Node(identifier="ab"), parent_id="a", key="b")
     t.insert_node(Node(identifier="c", keyed=False), parent_id="root", key="c")
-    t.insert_node(Node(identifier="c0"), parent_id="c")
-    t.insert_node(Node(identifier="c1"), parent_id="c")
+    t.insert_node(Node(identifier="c0", repr_="C0"), parent_id="c")
+    t.insert_node(Node(identifier="c1", repr_="C1"), parent_id="c")
 
     tree_sanity_check(t)
     return t
