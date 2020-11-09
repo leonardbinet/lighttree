@@ -126,7 +126,6 @@ class TreeBasedObj(Obj):
     useless instances, only direct children of accessed nodes are expanded.
     """
 
-    _NODE_PATH_ATTR = "identifier"
     _COERCE_ATTR = False
 
     def __init__(self, tree, root_path=None, depth=1, initial_tree=None):
@@ -183,8 +182,8 @@ class TreeBasedObj(Obj):
             r._expand_attrs(depth=1)
         return r
 
-    def _show(self):
-        tree_repr = self._tree.show()
+    def _show(self, *args, **kwargs):
+        tree_repr = self._tree.show(*args, **kwargs)
         if self._root_path is None:
             return "<%s>\n%s" % (
                 text(self.__class__._REPR_NAME or self.__class__.__name__),
@@ -196,6 +195,9 @@ class TreeBasedObj(Obj):
             text(current_path),
             text(tree_repr),
         )
+
+    def __call__(self, *args, **kwargs):
+        return self._tree
 
     def __str__(self):
         return self._show()

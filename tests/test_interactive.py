@@ -166,7 +166,6 @@ class TreeBasedObjTestCase(TestCase):
 
         class InteractiveTree(TreeBasedObj):
             _REPR_NAME = "SomeCoolTree"
-            _NODE_PATH_ATTR = "identifier"
 
         # if None depth is passed, the tree does not expand
         no_expand_obj = InteractiveTree(tree=get_sample_tree(), depth=None)

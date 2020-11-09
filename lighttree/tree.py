@@ -5,6 +5,8 @@ from __future__ import unicode_literals
 
 import copy
 
+from six import text_type
+
 from future.utils import python_2_unicode_compatible, iteritems, string_types
 
 from collections import defaultdict
@@ -32,7 +34,7 @@ class Tree(object):
 
     """
 
-    def __init__(self):
+    def __init__(self, path_separator="."):
         # nodes references and hierarchy in tree
         self.root = None
         # node identifier -> node
@@ -44,35 +46,53 @@ class Tree(object):
         # "list" node identifier -> children nodes identifiers
         self._nodes_children_list = defaultdict(list)
 
+        if not isinstance(path_separator, text_type):
+            raise ValueError("path_separator must be a string")
+        self.path_separator = path_separator
+
     def __contains__(self, identifier):
         return identifier in self._nodes_map
 
-    def get(self, nid):
+    def get(self, nid, by_path=False):
         """Get a node by its id.
         :param nid: str, identifier of node to fetch
+        :param by_path: bool, if True nid is the path to the node
         :rtype: lighttree.node.Node
         """
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
         return self.get_key(nid), self._nodes_map[nid]
 
-    def child_id(self, nid, key):
-        self._ensure_present(nid)
-        _, node = self.get(nid)
+    def child_id(self, nid, key, by_path=False):
+        _, node = self.get(nid, by_path=by_path)
         if node.keyed:
             return next(
                 (cid for cid, k in self._nodes_children_map[nid].items() if k == key)
             )
         return self._nodes_children_list[nid][int(key)]
 
-    def child(self, nid, key):
-        return self.get(self.child_id(nid, key))
+    def child(self, nid, key, by_path=False):
+        return self.get(self.child_id(nid, key, by_path=by_path))
 
-    def get_node_id_by_path(self, path, sep="."):
+    def get_node_id_by_path(self, path):
         nid = self.root
-        keys = str(path).split(sep)
+        if path == "":
+            return nid
+        keys = str(path).split(self.path_separator)
         for k in keys:
             nid = self.child_id(nid, k)
         return nid
+
+    def get_path(self, nid):
+        return self.path_separator.join(
+            [
+                str(k)
+                for k, _ in self.ancestors(nid, from_root=True, include_current=True)[
+                    1:
+                ]
+            ]
+        )
 
     def get_key(self, nid):
         """Get a node's key.
@@ -194,45 +214,61 @@ class Tree(object):
             return None, None
         return self.get(pid)
 
-    def parent_id(self, nid):
-        self._ensure_present(nid)
+    def parent_id(self, nid, by_path=False):
         if nid == self.root:
             return None
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
+        self._ensure_present(nid)
         return self._nodes_parent[nid]
 
-    def children(self, nid):
+    def children(self, nid, by_path=False):
         """Return set of given node children node ids."""
-        return [self.get(id_) for id_ in self.children_ids(nid)]
+        return [self.get(id_) for id_ in self.children_ids(nid, by_path=by_path)]
 
-    def children_ids(self, nid):
-        if self.get(nid)[1].keyed:
+    def children_ids(self, nid, by_path=False):
+        if self.get(nid, by_path=by_path)[1].keyed:
             return list(self._nodes_children_map[nid].keys())
         return list(self._nodes_children_list[nid])
 
-    def siblings(self, nid):
+    def siblings(self, nid, by_path=False):
         """Return set of ids of nodes that share the provided node's parent."""
-        return [self.get(id_) for id_ in self.siblings_ids(nid)]
+        return [self.get(id_) for id_ in self.siblings_ids(nid, by_path=by_path)]
 
-    def siblings_ids(self, nid):
+    def siblings_ids(self, nid, by_path=False):
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
         if nid == self.root:
             return []
         return list(set(self.children_ids(self.parent_id(nid))).difference({nid}))
 
-    def is_leaf(self, nid):
+    def is_leaf(self, nid, by_path=False):
         """Return is node is a leaf in this tree."""
-        return len(self.children_ids(nid)) == 0
+        return len(self.children_ids(nid, by_path=by_path)) == 0
 
-    def depth(self, nid):
+    def depth(self, nid, by_path=False):
         """Return node depth, 0 means root."""
-        return len(self.ancestors_ids(nid))
+        return len(self.ancestors_ids(nid, by_path=by_path))
 
-    def ancestors(self, nid, from_root=False, include_current=False):
+    def ancestors(self, nid, from_root=False, include_current=False, by_path=False):
+        """From element to root.
+        :param nid:
+        :param from_root:
+        :param include_current:
+        :param by_path:
+        :return:
+        """
         return [
-            self.get(id_) for id_ in self.ancestors_ids(nid, from_root, include_current)
+            self.get(id_)
+            for id_ in self.ancestors_ids(
+                nid, from_root, include_current, by_path=by_path
+            )
         ]
 
-    def ancestors_ids(self, nid, from_root=False, include_current=False):
+    def ancestors_ids(self, nid, from_root=False, include_current=False, by_path=False):
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
         ancestor_ids = [nid] if include_current else []
         if nid == self.root:
@@ -244,29 +280,43 @@ class Tree(object):
             ancestor_ids = list(reversed(ancestor_ids))
         return ancestor_ids
 
-    def subtree(self, nid, deep=False):
+    def subtree(self, nid, deep=False, by_path=False):
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
         t = self.clone(with_nodes=True, new_root=nid, deep=deep)
         if t.is_empty():
             return None, t
         return self.get_key(t.root), t
 
-    def leaves(self, nid=None):
+    def leaves(self, nid=None, by_path=False):
         """Return leaves under a node subtree."""
-        return [self.get(id_) for id_ in self.leaves_ids(nid)]
+        return [self.get(id_) for id_ in self.leaves_ids(nid, by_path=by_path)]
 
-    def leaves_ids(self, nid=None):
-        tree = self if nid is None else self.subtree(nid)[1]
+    def leaves_ids(self, nid=None, by_path=False):
+        tree = self if nid is None else self.subtree(nid, by_path=by_path)[1]
         return [id_ for id_ in tree._nodes_map.keys() if tree.is_leaf(id_)]
 
     def insert(
-        self, item, parent_id=None, child_id=None, child_id_below=None, key=None
+        self,
+        item,
+        parent_id=None,
+        child_id=None,
+        child_id_below=None,
+        key=None,
+        by_path=False,
     ):
         if isinstance(item, Node):
             if child_id_below is not None:
                 raise ValueError(
                     '"child_id_below" parameter is reserved to Tree insertion.'
                 )
-            self.insert_node(node=item, parent_id=parent_id, child_id=child_id, key=key)
+            self.insert_node(
+                node=item,
+                parent_id=parent_id,
+                child_id=child_id,
+                key=key,
+                by_path=by_path,
+            )
             return self
         if isinstance(item, Tree):
             self.insert_tree(
@@ -275,13 +325,14 @@ class Tree(object):
                 child_id=child_id,
                 child_id_below=child_id_below,
                 key=key,
+                by_path=by_path,
             )
             return self
         raise ValueError(
             '"item" parameter must either be a Node, or a Tree, got <%s>.' % type(item)
         )
 
-    def insert_node(self, node, parent_id=None, child_id=None, key=None):
+    def insert_node(self, node, parent_id=None, child_id=None, key=None, by_path=False):
         """Insert node, return key
         :param node:
         :param parent_id:
@@ -293,12 +344,12 @@ class Tree(object):
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
         if child_id is not None:
-            self._insert_node_above(node, child_id=child_id, key=key)
+            self._insert_node_above(node, child_id=child_id, key=key, by_path=by_path)
             return self
-        self._insert_node_below(node, parent_id=parent_id, key=key)
+        self._insert_node_below(node, parent_id=parent_id, key=key, by_path=by_path)
         return self.get_key(node.identifier)
 
-    def _insert_node_below(self, node, parent_id, key):
+    def _insert_node_below(self, node, parent_id, key, by_path):
         # insertion at root
         if parent_id is None:
             if not self.is_empty():
@@ -309,6 +360,8 @@ class Tree(object):
             self._nodes_map[node.identifier] = node
             return
 
+        if by_path:
+            parent_id = self.get_node_id_by_path(parent_id)
         self._ensure_present(parent_id)
         node_id = node.identifier
 
@@ -338,16 +391,26 @@ class Tree(object):
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
 
-    def _insert_node_above(self, node, child_id, key):
+    def _insert_node_above(self, node, child_id, key, by_path):
+        if by_path:
+            child_id = self.get_node_id_by_path(child_id)
         self._ensure_present(child_id)
         # get parent_id before dropping subtree
         parent_id = self.parent_id(child_id)
         subtree_key, child_subtree = self.drop_subtree(child_id)
-        self._insert_node_below(node, parent_id=parent_id, key=subtree_key)
-        self._insert_tree_below(child_subtree, node.identifier, key=key)
+        self._insert_node_below(
+            node, parent_id=parent_id, key=subtree_key, by_path=False
+        )
+        self._insert_tree_below(child_subtree, node.identifier, key=key, by_path=False)
 
     def insert_tree(
-        self, new_tree, parent_id=None, child_id=None, child_id_below=None, key=None
+        self,
+        new_tree,
+        parent_id=None,
+        child_id=None,
+        child_id_below=None,
+        key=None,
+        by_path=False,
     ):
         """Return new key"""
         self._validate_tree_insertion(new_tree)
@@ -357,18 +420,26 @@ class Tree(object):
             raise ValueError('Can declare at most "parent_id" or "child_id"')
         if child_id is not None:
             self._insert_tree_above(
-                new_tree, child_id=child_id, child_id_below=child_id_below, key=key
+                new_tree,
+                child_id=child_id,
+                child_id_below=child_id_below,
+                key=key,
+                by_path=by_path,
             )
         else:
-            self._insert_tree_below(new_tree, parent_id=parent_id, key=key)
+            self._insert_tree_below(
+                new_tree, parent_id=parent_id, key=key, by_path=by_path
+            )
         return self.get_key(new_tree.root)
 
-    def _insert_tree_below(self, new_tree, parent_id, key=None):
+    def _insert_tree_below(self, new_tree, parent_id, key, by_path):
         if parent_id is None:
             # insertion at root requires tree to be empty
             if not self.is_empty():
                 raise MultipleRootError("A tree takes one root merely.")
         else:
+            if by_path:
+                parent_id = self.get_node_id_by_path(parent_id)
             self._ensure_present(parent_id)
         self._validate_tree_insertion(new_tree)
 
@@ -382,10 +453,14 @@ class Tree(object):
             pid = parent_id if nid == new_tree.root else new_tree.parent_id(nid)
             self.insert_node(new_node, parent_id=pid, key=new_key)
 
-    def _insert_tree_above(self, new_tree, child_id, child_id_below, key):
+    def _insert_tree_above(self, new_tree, child_id, child_id_below, key, by_path):
         # make all checks before modifying tree
+        if by_path:
+            child_id = self.get_node_id_by_path(child_id)
         self._ensure_present(child_id)
         if child_id_below is not None:
+            if by_path:
+                child_id_below = self.get_node_id_by_path(child_id_below)
             new_tree._ensure_present(child_id_below)
         else:
             new_tree_leaves = new_tree.leaves_ids()
@@ -398,8 +473,8 @@ class Tree(object):
             child_id_below = new_tree_leaves.pop()
         parent_id = self.parent_id(child_id)
         subtree_key, child_subtree = self.drop_subtree(child_id)
-        self._insert_tree_below(new_tree, parent_id, key=subtree_key)
-        self._insert_tree_below(child_subtree, child_id_below, key=key)
+        self._insert_tree_below(new_tree, parent_id, key=subtree_key, by_path=False)
+        self._insert_tree_below(child_subtree, child_id_below, key=key, by_path=False)
 
     def _drop_node(self, nid):
         """Return key, node"""
@@ -427,12 +502,14 @@ class Tree(object):
             self.root = None
         return key, node
 
-    def drop_node(self, nid, with_children=True):
+    def drop_node(self, nid, with_children=True, by_path=False):
         """If with_children is False, children of this node will take as new parent the dropped node parent.
         Possible only if node type is same as parent node type.
 
         Return key, node.
         """
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
 
         children_ids = self.children_ids(nid)
@@ -455,10 +532,12 @@ class Tree(object):
         self.drop_node(nid, with_children=True)
         for cid in children_ids:
             k, st = removed_subtree.subtree(cid)
-            self._insert_tree_below(new_tree=st, parent_id=pid, key=k)
+            self._insert_tree_below(new_tree=st, parent_id=pid, key=k, by_path=False)
         return removed_key, removed_subtree.get(nid)[1]
 
-    def drop_subtree(self, nid):
+    def drop_subtree(self, nid, by_path=False):
+        if by_path:
+            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
         key, removed_subtree = self.subtree(nid)
         self.drop_node(nid=nid, with_children=True)
@@ -467,6 +546,7 @@ class Tree(object):
     def expand_tree(
         self,
         nid=None,
+        by_path=False,
         mode="depth",
         filter_=None,
         filter_through=False,
@@ -488,6 +568,8 @@ class Tree(object):
         """
         if mode not in ("depth", "width"):
             raise NotImplementedError("Traversal mode '%s' is not supported" % mode)
+        if nid is not None and by_path:
+            nid = self.get_node_id_by_path(nid)
         nid = self._ensure_present(nid, defaults_to_root=True, allow_empty=True)
         sort_key = itemgetter(0) if sort_key is None else sort_key
         if nid is not None:
@@ -526,6 +608,7 @@ class Tree(object):
     def show(
         self,
         nid=None,
+        by_path=False,
         filter_=None,
         sort_key=None,
         display_key=True,
@@ -549,6 +632,8 @@ class Tree(object):
 
         """
         output = ""
+        if nid is not None and by_path:
+            nid = self.get_node_id_by_path(nid)
 
         for is_last_list, key, node in self._iter_nodes_with_location(
             nid, filter_, sort_key, reverse
@@ -619,7 +704,7 @@ class Tree(object):
         lasting = dt_line_corner if is_last_list[-1] else dt_line_box
         return leading + lasting
 
-    def merge(self, new_tree, nid=None):
+    def merge(self, new_tree, nid=None, by_path=False):
         """Merge "new_tree" on current tree by pasting its root children on current tree "nid" node.
 
         Consider the following trees:
@@ -649,6 +734,9 @@ class Tree(object):
         other cases new_tree root is not pasted.
 
         """
+        if nid is not None and by_path:
+            nid = self.get_node_id_by_path(nid)
+
         if not isinstance(new_tree, self.__class__):
             raise ValueError(
                 'Wrong type of "new_tree", expected <%s>, got <%s>'
@@ -656,14 +744,12 @@ class Tree(object):
             )
 
         if self.is_empty():
-            return self._insert_tree_below(new_tree, parent_id=None)
+            return self.insert(new_tree, parent_id=None, by_path=False)
 
         nid = self._ensure_present(nid, defaults_to_root=True)
 
         for ckey, cnode in new_tree.children(new_tree.root):
-            self._insert_tree_below(
-                new_tree.subtree(cnode.identifier)[1], nid, key=ckey
-            )
+            self.insert(new_tree.subtree(cnode.identifier)[1], nid, key=ckey)
         return self
 
     def __str__(self):

@@ -42,7 +42,7 @@ def tree_sanity_check(tree):
 # testing samples
 
 
-def get_sample_tree():
+def get_sample_tree(path_separator="."):
     """
     root {}
     ├── a {}
@@ -54,7 +54,7 @@ def get_sample_tree():
         ├── c0
         └── c1
     """
-    t = Tree()
+    t = Tree(path_separator=path_separator)
     t.insert_node(Node(identifier="root"))
     t.insert_node(Node(identifier="a"), parent_id="root", key="a")
     t.insert_node(Node(identifier="aa", keyed=False), parent_id="a", key="a")

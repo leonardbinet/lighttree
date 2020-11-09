@@ -558,7 +558,7 @@ class TreeCase(TestCase):
 
         # insert subtree
         t_to_paste = get_sample_tree_2()
-        t._insert_tree_below(new_tree=t_to_paste, parent_id="c")
+        t.insert(t_to_paste, parent_id="c")
         tree_sanity_check(t)
         tree_sanity_check(t_to_paste)
         self.assertEqual(
@@ -588,7 +588,7 @@ class TreeCase(TestCase):
 
         # cannot repaste tree, because then there would be node duplicates
         with self.assertRaises(DuplicatedNodeError):
-            t._insert_tree_below(new_tree=t_to_paste, parent_id="aa0")
+            t.insert(t_to_paste, parent_id="aa0")
         tree_sanity_check(t)
         tree_sanity_check(t_to_paste)
 
@@ -818,5 +818,41 @@ class TreeCase(TestCase):
         self.assertEqual(t.get_node_id_by_path("a"), "a")
         self.assertEqual(t.get_node_id_by_path("a.b"), "ab")
         self.assertEqual(t.get_node_id_by_path("a.a.1"), "aa1")
-        self.assertEqual(t.get_node_id_by_path("a|a|1", sep="|"), "aa1")
         self.assertEqual(t.get_node_id_by_path("c.1"), "c1")
+
+    def test_subtree(self):
+        t = get_sample_tree()
+
+        # by path
+        k, st = t.subtree(nid="a.a", by_path=True)
+        self.assertEqual(k, "a")
+        self.assertEqual(
+            st.show(),
+            """[]
+├── AA0
+└── AA1
+""",
+        )
+
+        # by id
+        nid = t.get_node_id_by_path("a.a")
+        k, st = t.subtree(nid=nid)
+        self.assertEqual(k, "a")
+        self.assertEqual(
+            st.show(),
+            """[]
+├── AA0
+└── AA1
+""",
+        )
+
+    def test_path(self):
+        t = get_sample_tree()
+        for p in ("a.a", "a.b", "a", "", "a.a.1"):
+            nid = t.get_node_id_by_path(p)
+            self.assertEqual(t.get_path(nid), p)
+
+        t = get_sample_tree(path_separator="|")
+        for p in ("a|a", "a|b", "a", "", "a|a|1"):
+            nid = t.get_node_id_by_path(p)
+            self.assertEqual(t.get_path(nid), p)
