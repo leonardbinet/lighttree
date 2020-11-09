@@ -3,9 +3,7 @@
 
 from __future__ import unicode_literals
 import copy
-from future.utils import python_2_unicode_compatible
-from six import text_type
-
+from future.utils import python_2_unicode_compatible, string_types, text_type
 import uuid
 
 
@@ -23,7 +21,7 @@ class Node(object):
         """
         :param identifier: node identifier, must be unique per tree
         """
-        if identifier is not None and not isinstance(identifier, text_type):
+        if identifier is not None and not isinstance(identifier, string_types):
             raise ValueError(
                 "Identifier must be a string type, provided type is <%s>"
                 % type(identifier)

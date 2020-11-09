@@ -149,7 +149,7 @@ class TreeBasedObj(Obj):
         if depth:
             for child_key, child_node in self._tree.children(nid=self._tree.root):
                 # keyed parent node
-                if isinstance(child_key, text):
+                if isinstance(child_key, string_types):
                     if self._COERCE_ATTR:
                         # if invalid coercion, coerce returns None, in this case we keep inital naming
                         str_child_key = _coerce_attr(child_key) or child_key

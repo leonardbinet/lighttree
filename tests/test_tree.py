@@ -4,6 +4,7 @@
 from __future__ import unicode_literals
 
 from collections import defaultdict
+from operator import itemgetter
 from unittest import TestCase
 
 
@@ -156,10 +157,16 @@ class TreeCase(TestCase):
 
         self.assertEqual(to_key_id(t.list(id_in=["a", "c"])), [("a", "a"), ("c", "c")])
         self.assertEqual(
-            to_key_id(t.list(depth_in=[0, 2])),
-            [(None, "root"), ("a", "aa"), ("b", "ab"), (0, "c0"), (1, "c1")],
+            sorted(to_key_id(t.list(depth_in=[0, 2])), key=itemgetter(1)),
+            sorted(
+                [(None, "root"), ("a", "aa"), ("b", "ab"), (0, "c0"), (1, "c1")],
+                key=itemgetter(1),
+            ),
         )
-        self.assertEqual(to_key_id(t.list(depth_in=[3])), [(0, "aa0"), (1, "aa1")])
+        self.assertEqual(
+            sorted(to_key_id(t.list(depth_in=[3])), key=itemgetter(1)),
+            sorted([(0, "aa0"), (1, "aa1")], key=itemgetter(1)),
+        )
 
     def test_is_empty(self):
         self.assertTrue(Tree().is_empty())
@@ -787,13 +794,24 @@ class TreeCase(TestCase):
         self.assertEqual(key, "a")
         self.assertIsInstance(a1_subtree, Tree)
         self.assertEqual(
-            to_key_id(a1_subtree.list()), [(None, "aa"), (0, "aa0"), (1, "aa1")]
+            sorted(to_key_id(a1_subtree.list()), key=itemgetter(1)),
+            sorted([(None, "aa"), (0, "aa0"), (1, "aa1")], key=itemgetter(1)),
         )
         tree_sanity_check(t)
         tree_sanity_check(a1_subtree)
         self.assertEqual(
-            to_key_id(t.list()),
-            [(None, "root"), ("a", "a"), ("b", "ab"), ("c", "c"), (0, "c0"), (1, "c1")],
+            sorted(to_key_id(t.list()), key=itemgetter(1)),
+            sorted(
+                [
+                    (None, "root"),
+                    ("a", "a"),
+                    ("b", "ab"),
+                    ("c", "c"),
+                    (0, "c0"),
+                    (1, "c1"),
+                ],
+                key=itemgetter(1),
+            ),
         )
         self.assertEqual(
             t.show(),

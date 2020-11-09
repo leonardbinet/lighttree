@@ -5,8 +5,6 @@ from __future__ import unicode_literals
 
 import copy
 
-from six import text_type
-
 from future.utils import python_2_unicode_compatible, iteritems, string_types
 
 from collections import defaultdict
@@ -46,8 +44,10 @@ class Tree(object):
         # "list" node identifier -> children nodes identifiers
         self._nodes_children_list = defaultdict(list)
 
-        if not isinstance(path_separator, text_type):
-            raise ValueError("path_separator must be a string")
+        if not isinstance(path_separator, string_types):
+            raise ValueError(
+                "path_separator must be a string, got %s" % type(path_separator)
+            )
         self.path_separator = path_separator
 
     def __contains__(self, identifier):
