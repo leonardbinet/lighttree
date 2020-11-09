@@ -7,9 +7,10 @@ import sys
 
 from unittest import TestCase
 
+from .testing_utils import get_sample_tree
+
 from lighttree import TreeBasedObj
 from lighttree.interactive import Obj, is_valid_attr_name, _coerce_attr
-from tests.testing_utils import get_sample_custom_tree
 
 
 class ObjTestCase(TestCase):
@@ -157,7 +158,7 @@ class ObjTestCase(TestCase):
 class TreeBasedObjTestCase(TestCase):
     def test_tree_based_obj(self):
         """Check expand and shallow copy.
-        - check that an object expand its tree's chilren in its attributes
+        - check that an object expand its tree's children in its attributes
         - check that no deep copy is made when expanding trees. More precisely, since we might manipulate
         lots of nodes, we want to check that nodes are never copied. Instead their reference is passed to different
         trees.
@@ -165,66 +166,68 @@ class TreeBasedObjTestCase(TestCase):
 
         class InteractiveTree(TreeBasedObj):
             _REPR_NAME = "SomeCoolTree"
-            _NODE_PATH_ATTR = "identifier"
 
         # if None depth is passed, the tree does not expand
-        no_expand_obj = InteractiveTree(tree=get_sample_custom_tree(), depth=None)
+        no_expand_obj = InteractiveTree(tree=get_sample_tree(), depth=None)
         for child in ("a", "b"):
             self.assertFalse(hasattr(no_expand_obj, child))
 
         # if depth is passed, the tree expand
-        obj = InteractiveTree(tree=get_sample_custom_tree(), depth=1)
-        for child in ("a", "b"):
+        obj = InteractiveTree(tree=get_sample_tree(), depth=1)
+        for child in ("a", "c"):
             self.assertTrue(hasattr(obj, child))
 
         # when accessing child, check that it auto-expands children
-        obj.a.a1
+        obj.a.a.i0
         a = obj.a
         """
-        a
-        ├── a1
-        │   ├── a11
-        │   └── a12
-        └── a2
+        _ {}
+        ├── a {}
+        │   ├── aa []
+        │   │   ├── aa0
+        │   │   └── aa1
+        │   └── ab {}
+        └── c []
+            ├── c0
+            └── c1
         """
-        self.assertTrue(hasattr(a, "a1"))
-        self.assertEqual(a._tree.get("a1"), obj._tree.get("a1"))
+        self.assertTrue(hasattr(a, "a"))
+        self.assertEqual(a._tree.get("aa"), obj._tree.get("aa"))
 
         # test representations
         self.assertEqual(
             obj._show(),
             """<SomeCoolTree>
-root
-├── a
-│   ├── a1
-│   │   ├── a11
-│   │   └── a12
-│   └── a2
-└── b
-    └── b1
+{}
+├── a: {}
+│   ├── a: []
+│   │   ├── AA0
+│   │   └── AA1
+│   └── b: {}
+└── c: []
+    ├── C0
+    └── C1
 """,
         )
         self.assertEqual(
             a._show(),
             """<SomeCoolTree subpart: a>
-a
-├── a1
-│   ├── a11
-│   └── a12
-└── a2
+{}
+├── a: []
+│   ├── AA0
+│   └── AA1
+└── b: {}
 """,
         )
         self.assertEqual(
-            a.a1._show(),
-            """<SomeCoolTree subpart: a.a1>
-a1
-├── a11
-└── a12
+            a.a.i0._show(),
+            """<SomeCoolTree subpart: a.a.0>
+AA0
 """,
         )
 
     def test_tree_set_get_attrs(self):
-        obj = TreeBasedObj(tree=get_sample_custom_tree())
+        obj = TreeBasedObj(tree=get_sample_tree())
         obj["some_key"] = "some_value"
         self.assertEqual(obj.some_key, "some_value")
         self.assertEqual(obj["some_key"], "some_value")

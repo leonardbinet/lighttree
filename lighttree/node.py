@@ -3,18 +3,25 @@
 
 from __future__ import unicode_literals
 import copy
-from future.utils import python_2_unicode_compatible, string_types
-
+from future.utils import python_2_unicode_compatible, string_types, text_type
 import uuid
 
 
 @python_2_unicode_compatible
 class Node(object):
-    def __init__(self, identifier=None, auto_uuid=False):
+    def __init__(
+        self,
+        identifier=None,
+        auto_uuid=True,
+        keyed=True,
+        accept_children=True,
+        repr_=None,
+        data=None,
+    ):
         """
         :param identifier: node identifier, must be unique per tree
         """
-        if not isinstance(identifier, string_types):
+        if identifier is not None and not isinstance(identifier, string_types):
             raise ValueError(
                 "Identifier must be a string type, provided type is <%s>"
                 % type(identifier)
@@ -24,27 +31,24 @@ class Node(object):
                 raise ValueError("Required identifier")
             identifier = uuid.uuid4()
         self.identifier = identifier
+        self.keyed = keyed
+        self.accept_children = accept_children
+        self.repr = repr_
+        self.data = data
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
         """
-        return self.identifier
+        if self.repr is not None:
+            return self.repr
+        if not self.accept_children:
+            return text_type(self.data)
+        if self.keyed:
+            return "{}"
+        return "[]"
 
     def clone(self, deep=False):
         return copy.deepcopy(self) if deep else copy.copy(self)
-
-    def serialize(self, *args, **kwargs):
-        return {"identifier": self.identifier}
-
-    @classmethod
-    def deserialize(cls, d, *args, **kwargs):
-        if not isinstance(d, dict):
-            raise ValueError("Deserialization requires a dict.")
-        return cls._deserialize(d, *args, **kwargs)
-
-    @classmethod
-    def _deserialize(cls, d, *args, **kwargs):
-        return cls(d.get("identifier"))
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):

@@ -126,7 +126,6 @@ class TreeBasedObj(Obj):
     useless instances, only direct children of accessed nodes are expanded.
     """
 
-    _NODE_PATH_ATTR = "identifier"
     _COERCE_ATTR = False
 
     def __init__(self, tree, root_path=None, depth=1, initial_tree=None):
@@ -141,39 +140,30 @@ class TreeBasedObj(Obj):
         self._expand_attrs(depth)
 
     def _clone(self, nid, root_path, depth):
+        _, st = self._tree.subtree(nid)
         return self.__class__(
-            tree=self._tree.subtree(nid),
-            root_path=root_path,
-            depth=depth,
-            initial_tree=self._initial_tree,
+            tree=st, root_path=root_path, depth=depth, initial_tree=self._initial_tree,
         )
 
     def _expand_attrs(self, depth):
         if depth:
-            for child in self._tree.children(nid=self._tree.root, id_only=False):
-                try:
-                    child_path = getattr(child, self._NODE_PATH_ATTR)
-                except AttributeError:
-                    raise AttributeError(
-                        '<%s> instance should have the "%s" attribute that serves as autocomplete '
-                        "expanding attribute in <%s>."
-                        % (
-                            self.tree.node_class.__name__,
-                            self._NODE_PATH_ATTR,
-                            self.__name__,
-                        )
-                    )
-                if self._COERCE_ATTR:
-                    # if invalid coercion, coerce returns None, in this case we keep inital naming
-                    child_path = _coerce_attr(child_path) or child_path
-                if child_path in self:
-                    continue
-                if self._root_path is not None:
-                    child_root = "%s.%s" % (self._root_path, child_path)
+            for child_key, child_node in self._tree.children(nid=self._tree.root):
+                # keyed parent node
+                if isinstance(child_key, string_types):
+                    if self._COERCE_ATTR:
+                        # if invalid coercion, coerce returns None, in this case we keep inital naming
+                        str_child_key = _coerce_attr(child_key) or child_key
+                    else:
+                        str_child_key = child_key
                 else:
-                    child_root = child_path
-                self[child_path] = self._clone(
-                    child.identifier, root_path=child_root, depth=depth - 1
+                    str_child_key = "i%d" % child_key
+
+                if self._root_path is not None:
+                    child_root = "%s.%s" % (self._root_path, child_key)
+                else:
+                    child_root = child_key
+                self[str_child_key] = self._clone(
+                    child_node.identifier, root_path=child_root, depth=depth - 1
                 )
 
     def __getattribute__(self, item):
@@ -192,8 +182,8 @@ class TreeBasedObj(Obj):
             r._expand_attrs(depth=1)
         return r
 
-    def _show(self):
-        tree_repr = self._tree.show()
+    def _show(self, *args, **kwargs):
+        tree_repr = self._tree.show(*args, **kwargs)
         if self._root_path is None:
             return "<%s>\n%s" % (
                 text(self.__class__._REPR_NAME or self.__class__.__name__),
@@ -205,6 +195,9 @@ class TreeBasedObj(Obj):
             text(current_path),
             text(tree_repr),
         )
+
+    def __call__(self, *args, **kwargs):
+        return self._tree
 
     def __str__(self):
         return self._show()
