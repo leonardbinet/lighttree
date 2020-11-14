@@ -544,21 +544,81 @@ class TreeCase(TestCase):
         )
 
     def test_prefix_repr(self):
-        self.assertEqual(Tree._prefix_repr(line_type="ascii-ex", is_last_list=[]), "")
         self.assertEqual(
-            Tree._prefix_repr(line_type="ascii-ex", is_last_list=[True]), "└── "
+            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=[]), ""
         )
         self.assertEqual(
-            Tree._prefix_repr(line_type="ascii-ex", is_last_list=[False]), "├── "
+            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=[True]), "└── "
         )
         self.assertEqual(
-            Tree._prefix_repr(line_type="ascii-ex", is_last_list=[True, False, True]),
+            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=[False]), "├── "
+        )
+        self.assertEqual(
+            Tree._line_prefix_repr(
+                line_type="ascii-ex", is_last_list=[True, False, True]
+            ),
             "    │   └── ",
         )
         self.assertEqual(
-            Tree._prefix_repr(line_type="ascii-ex", is_last_list=[False, False, False]),
+            Tree._line_prefix_repr(
+                line_type="ascii-ex", is_last_list=[False, False, False]
+            ),
             "│   │   ├── ",
         )
+
+    def test_line_repr(self):
+        tts = [
+            (
+                "no key",
+                "└──",
+                False,
+                "start message",
+                "end message",
+                40,
+                "└──start message             end message",
+            ),
+            (
+                "with key",
+                "└── a",
+                True,
+                "start message",
+                "end message",
+                40,
+                "└── a: start message         end message",
+            ),
+            (
+                "no key / too long",
+                "└──",
+                False,
+                "start message",
+                "end message",
+                15,
+                "└──start mes...",
+            ),
+            (
+                "with key / too long",
+                "└── a",
+                True,
+                "start message",
+                "end message",
+                15,
+                "└── a: start...",
+            ),
+        ]
+        for (
+            desc,
+            prefix,
+            is_key_displayed,
+            node_start,
+            node_end,
+            line_max_length,
+            expected,
+        ) in tts:
+            line_repr = Tree._line_repr(
+                prefix, is_key_displayed, ": ", node_start, node_end, line_max_length
+            )
+            self.assertEqual(expected, line_repr, desc)
+            self.assertEqual(len(line_repr), line_max_length)
 
     def test_insert_tree_below(self):
         t = get_sample_tree()
