@@ -615,6 +615,8 @@ class Tree(object):
         reverse=False,
         line_type="ascii-ex",
         limit=None,
+        line_max_length=60,
+        key_delimiter=": ",
         **kwargs
     ):
         """Return tree structure in hierarchy style.
@@ -628,6 +630,7 @@ class Tree(object):
         :param line_type: display type choice
         :param limit: int, truncate tree display to this number of lines
         :param kwargs: kwargs params passed to node ``line_repr`` method
+        :param line_max_length
         :rtype: unicode in python2, str in python3
 
         """
@@ -638,15 +641,24 @@ class Tree(object):
         for is_last_list, key, node in self._iter_nodes_with_location(
             nid, filter_, sort_key, reverse
         ):
-            prefix = self._prefix_repr(line_type, is_last_list)
+            prefix = self._line_prefix_repr(line_type, is_last_list)
             display_key_ = isinstance(key, string_types) and display_key
             if display_key_:
                 prefix += key
-            node_repr = node.line_repr(
+            node_start, node_end = node.line_repr(
                 depth=len(is_last_list), prefix_len=len(prefix), **kwargs
             )
-            inter = ": " if node_repr and display_key_ else ""
-            output += "%s%s%s\n" % (prefix, inter, node_repr)
+
+            line = self._line_repr(
+                prefix,
+                display_key_,
+                key_delimiter,
+                node_start,
+                node_end,
+                line_max_length,
+            )
+
+            output += "%s\n" % line
             if limit is not None:
                 limit -= 1
                 if limit == 0:
@@ -691,7 +703,22 @@ class Tree(object):
                     is_last_list.pop()
 
     @staticmethod
-    def _prefix_repr(line_type, is_last_list):
+    def _line_repr(
+        prefix, is_key_displayed, key_delimiter, node_start, node_end, line_max_length
+    ):
+        line = prefix
+        if node_start and is_key_displayed:
+            line += key_delimiter
+        line += node_start
+        if node_end:
+            padding = max(line_max_length - len(line) - len(node_end), 0)
+            line += padding * " " + node_end
+        if len(line) > line_max_length:
+            line = line[: line_max_length - 3] + "..."
+        return line
+
+    @staticmethod
+    def _line_prefix_repr(line_type, is_last_list):
         if not is_last_list:
             return ""
         dt_vertical_line, dt_line_box, dt_line_corner = STYLES[line_type]
