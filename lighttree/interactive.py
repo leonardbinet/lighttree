@@ -127,6 +127,7 @@ class TreeBasedObj(Obj):
     """
 
     _COERCE_ATTR = False
+    _ATTR = None
 
     def __init__(self, tree, root_path=None, depth=1, initial_tree=None):
         super(TreeBasedObj, self).__init__()
@@ -142,13 +143,17 @@ class TreeBasedObj(Obj):
     def _clone(self, nid, root_path, depth):
         _, st = self._tree.subtree(nid)
         return self.__class__(
-            tree=st, root_path=root_path, depth=depth, initial_tree=self._initial_tree,
+            tree=st,
+            root_path=root_path,
+            depth=depth,
+            initial_tree=self._initial_tree,
         )
 
     def _expand_attrs(self, depth):
         if depth:
             for child_key, child_node in self._tree.children(nid=self._tree.root):
-                # keyed parent node
+                if self._ATTR:
+                    child_key = getattr(child_node, self._ATTR)
                 if isinstance(child_key, string_types):
                     if self._COERCE_ATTR:
                         # if invalid coercion, coerce returns None, in this case we keep inital naming

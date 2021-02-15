@@ -33,6 +33,12 @@ class Tree(object):
     """
 
     def __init__(self, path_separator="."):
+        if not isinstance(path_separator, string_types):
+            raise ValueError(
+                "path_separator must be a string, got %s" % type(path_separator)
+            )
+        self.path_separator = path_separator
+
         # nodes references and hierarchy in tree
         self.root = None
         # node identifier -> node
@@ -43,12 +49,6 @@ class Tree(object):
         self._nodes_children_map = defaultdict(dict)
         # "list" node identifier -> children nodes identifiers
         self._nodes_children_list = defaultdict(list)
-
-        if not isinstance(path_separator, string_types):
-            raise ValueError(
-                "path_separator must be a string, got %s" % type(path_separator)
-            )
-        self.path_separator = path_separator
 
     def __contains__(self, identifier):
         return identifier in self._nodes_map
@@ -67,9 +67,17 @@ class Tree(object):
     def child_id(self, nid, key, by_path=False):
         _, node = self.get(nid, by_path=by_path)
         if node.keyed:
-            return next(
-                (cid for cid, k in self._nodes_children_map[nid].items() if k == key)
+            child_id = next(
+                (cid for cid, k in self._nodes_children_map[nid].items() if k == key),
+                None,
             )
+            if child_id is None:
+                raise ValueError("No child of key %s below %s" % (key, nid))
+            return child_id
+        try:
+            int(key)
+        except:
+            raise ValueError("Expected integer key, got %s" % key)
         return self._nodes_children_list[nid][int(key)]
 
     def child(self, nid, key, by_path=False):
@@ -193,11 +201,15 @@ class Tree(object):
         if not with_nodes:
             return new_tree
 
+        # remove eventual created nodes at init
+        if new_tree.root:
+            new_tree.drop_node(new_tree.root, return_subtree=False)
         for i, (key, node) in enumerate(self.expand_tree(nid=new_root)):
             nid = node.identifier
             if deep:
                 node = copy.deepcopy(node)
             if i == 0:
+                # necessary in case of new_root (the new root has no parent nor key)
                 pid = None
                 key = None
             else:
@@ -365,8 +377,12 @@ class Tree(object):
         self._ensure_present(parent_id)
         node_id = node.identifier
 
+        _, parent = self.get(parent_id)
+        if not parent.accept_children:
+            raise ValueError("Parent node %s does not accept children." % parent_id)
+
         # map
-        if self.get(parent_id)[1].keyed:
+        if parent.keyed:
             if key is None:
                 raise ValueError("Key is compulsory")
             if not isinstance(key, string_types):
@@ -502,7 +518,7 @@ class Tree(object):
             self.root = None
         return key, node
 
-    def drop_node(self, nid, with_children=True, by_path=False):
+    def drop_node(self, nid, with_children=True, by_path=False, return_subtree=True):
         """If with_children is False, children of this node will take as new parent the dropped node parent.
         Possible only if node type is same as parent node type.
 
@@ -513,7 +529,11 @@ class Tree(object):
         self._ensure_present(nid)
 
         children_ids = self.children_ids(nid)
-        removed_key, removed_subtree = self.subtree(nid)
+        if return_subtree:
+            removed_key, removed_subtree = self.subtree(nid)
+        else:
+            removed_key, removed_subtree = None, None
+
         if with_children:
             for cid in children_ids:
                 self.drop_node(cid, with_children=True)
@@ -533,7 +553,8 @@ class Tree(object):
         for cid in children_ids:
             k, st = removed_subtree.subtree(cid)
             self._insert_tree_below(new_tree=st, parent_id=pid, key=k, by_path=False)
-        return removed_key, removed_subtree.get(nid)[1]
+        if return_subtree:
+            return removed_key, removed_subtree.get(nid)[1]
 
     def drop_subtree(self, nid, by_path=False):
         if by_path:
@@ -697,7 +718,11 @@ class Tree(object):
                 for idx, (child_k, child) in enumerate(children):
                     is_last_list.append(idx == idxlast)
                     for item in self._iter_nodes_with_location(
-                        child.identifier, filter_, sort_key, reverse, is_last_list,
+                        child.identifier,
+                        filter_,
+                        sort_key,
+                        reverse,
+                        is_last_list,
                     ):
                         yield item
                     is_last_list.pop()
