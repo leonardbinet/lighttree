@@ -38,7 +38,6 @@ class Node(object):
 
     def line_repr(self, depth, **kwargs):
         """Control how node is displayed in tree representation.
-
         _
         ├── one                                           end
         │   └── two                                     myEnd
@@ -51,9 +50,6 @@ class Node(object):
         if self.keyed:
             return "{}", ""
         return "[]", ""
-
-    def clone(self, deep=False):
-        return copy.deepcopy(self) if deep else copy.copy(self)
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):

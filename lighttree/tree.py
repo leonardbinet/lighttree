@@ -67,9 +67,17 @@ class Tree(object):
     def child_id(self, nid, key, by_path=False):
         _, node = self.get(nid, by_path=by_path)
         if node.keyed:
-            return next(
-                (cid for cid, k in self._nodes_children_map[nid].items() if k == key)
+            child_id = next(
+                (cid for cid, k in self._nodes_children_map[nid].items() if k == key),
+                None,
             )
+            if child_id is None:
+                raise ValueError("No child of key %s below %s" % (key, nid))
+            return child_id
+        try:
+            int(key)
+        except:
+            raise ValueError("Expected integer key, got %s" % key)
         return self._nodes_children_list[nid][int(key)]
 
     def child(self, nid, key, by_path=False):
@@ -369,8 +377,12 @@ class Tree(object):
         self._ensure_present(parent_id)
         node_id = node.identifier
 
+        _, parent = self.get(parent_id)
+        if not parent.accept_children:
+            raise ValueError("Parent node %s does not accept children." % parent_id)
+
         # map
-        if self.get(parent_id)[1].keyed:
+        if parent.keyed:
             if key is None:
                 raise ValueError("Key is compulsory")
             if not isinstance(key, string_types):
@@ -706,7 +718,11 @@ class Tree(object):
                 for idx, (child_k, child) in enumerate(children):
                     is_last_list.append(idx == idxlast)
                     for item in self._iter_nodes_with_location(
-                        child.identifier, filter_, sort_key, reverse, is_last_list,
+                        child.identifier,
+                        filter_,
+                        sort_key,
+                        reverse,
+                        is_last_list,
                     ):
                         yield item
                     is_last_list.pop()
