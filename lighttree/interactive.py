@@ -1,17 +1,14 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-from __future__ import unicode_literals
 
-from builtins import str as text
 import re
 import unicodedata
 
-from future.utils import string_types, python_2_unicode_compatible
 from lighttree.tree import Tree
 
 
 def is_valid_attr_name(item):
-    if not isinstance(item, string_types):
+    if not isinstance(item, str):
         return False
     if item.startswith("__"):
         return False
@@ -34,7 +31,6 @@ def _coerce_attr(attr):
     return None
 
 
-@python_2_unicode_compatible
 class Obj(object):
     """Object class that allows to get items both by attribute `__getattribute__` access: `obj.attribute` or by dict
     `__getitem__` access:
@@ -63,7 +59,7 @@ class Obj(object):
         self.__d = dict()
         for k, v in kwargs.items():
             if not (
-                isinstance(k, string_types)
+                isinstance(k, str)
                 and k not in ("_REPR_NAME", "_Obj__d")
                 and not k.startswith("__")
             ):
@@ -81,7 +77,7 @@ class Obj(object):
 
     def __setitem__(self, key, value):
         # d[key] = value
-        if not isinstance(key, string_types):
+        if not isinstance(key, str):
             if self._STRING_KEY_CONSTRAINT:
                 raise ValueError(
                     "Key <%s> of type <%s> cannot be set as attribute on <%s> instance."
@@ -109,15 +105,14 @@ class Obj(object):
 
     def __str__(self):
         return "<%s> %s" % (
-            text(self.__class__._REPR_NAME or self.__class__.__name__),
-            text(sorted(map(text, self.__keys()))),
+            str(self.__class__._REPR_NAME or self.__class__.__name__),
+            str(sorted(map(str, self.__keys()))),
         )
 
     def __repr__(self):
         return self.__str__()
 
 
-@python_2_unicode_compatible
 class TreeBasedObj(Obj):
     """
     Recursive Obj whose structure is defined by a lighttree.Tree object.
@@ -154,7 +149,7 @@ class TreeBasedObj(Obj):
             for child_key, child_node in self._tree.children(nid=self._tree.root):
                 if self._ATTR:
                     child_key = getattr(child_node, self._ATTR)
-                if isinstance(child_key, string_types):
+                if isinstance(child_key, str):
                     if self._COERCE_ATTR:
                         # if invalid coercion, coerce returns None, in this case we keep inital naming
                         str_child_key = _coerce_attr(child_key) or child_key
@@ -191,14 +186,14 @@ class TreeBasedObj(Obj):
         tree_repr = self._tree.show(*args, **kwargs)
         if self._root_path is None:
             return "<%s>\n%s" % (
-                text(self.__class__._REPR_NAME or self.__class__.__name__),
-                text(tree_repr),
+                str(self.__class__._REPR_NAME or self.__class__.__name__),
+                str(tree_repr),
             )
         current_path = self._root_path
         return "<%s subpart: %s>\n%s" % (
-            text(self.__class__._REPR_NAME or self.__class__.__name__),
-            text(current_path),
-            text(tree_repr),
+            str(self.__class__._REPR_NAME or self.__class__.__name__),
+            str(current_path),
+            str(tree_repr),
         )
 
     def __call__(self, *args, **kwargs):

@@ -1,21 +1,15 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
-
 import copy
-
-from future.utils import python_2_unicode_compatible, iteritems, string_types
-
 from collections import defaultdict
 from operator import itemgetter
 
 from lighttree.node import Node
-from .utils import STYLES
 from .exceptions import MultipleRootError, NotFoundNodeError, DuplicatedNodeError
+from .utils import STYLES
 
 
-@python_2_unicode_compatible
 class Tree(object):
 
     """Principles:
@@ -33,7 +27,7 @@ class Tree(object):
     """
 
     def __init__(self, path_separator="."):
-        if not isinstance(path_separator, string_types):
+        if not isinstance(path_separator, str):
             raise ValueError(
                 "path_separator must be a string, got %s" % type(path_separator)
             )
@@ -127,7 +121,7 @@ class Tree(object):
         """
         return [
             (self.get_key(nid), node)
-            for nid, node in iteritems(self._nodes_map)
+            for nid, node in self._nodes_map.items()
             if (id_in is None or nid in id_in)
             and (filter_ is None or filter_(node))
             and (depth_in is None or self.depth(nid) in depth_in)
@@ -385,7 +379,7 @@ class Tree(object):
         if parent.keyed:
             if key is None:
                 raise ValueError("Key is compulsory")
-            if not isinstance(key, string_types):
+            if not isinstance(key, str):
                 raise ValueError('Key must be of type "str", got %s' % type(key))
             if key in self._nodes_children_map[parent_id]:
                 # TODO add overwrite parameter
@@ -663,7 +657,7 @@ class Tree(object):
             nid, filter_, sort_key, reverse
         ):
             prefix = self._line_prefix_repr(line_type, is_last_list)
-            display_key_ = isinstance(key, string_types) and display_key
+            display_key_ = isinstance(key, str) and display_key
             if display_key_:
                 prefix += key
             node_start, node_end = node.line_repr(

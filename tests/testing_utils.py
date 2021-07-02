@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from future.utils import string_types, iteritems
+
 from lighttree import Tree, Node
 
 
@@ -16,8 +16,8 @@ def tree_sanity_check(tree):
         nid in tree._nodes_map.keys() for nid in tree._nodes_children_list.keys()
     )
 
-    for nid, node in iteritems(tree._nodes_map):
-        assert isinstance(nid, string_types)
+    for nid, node in tree._nodes_map.items():
+        assert isinstance(nid, str)
         # ensure all nodes except root have a parent, and that it they are registered as child of that parent
         pid = tree._nodes_parent[nid]
         if nid == tree.root:
@@ -27,7 +27,7 @@ def tree_sanity_check(tree):
             if tree._nodes_map[pid].keyed:
                 assert nid in tree._nodes_children_map[pid]
                 # ensure key is string
-                assert isinstance(tree._nodes_children_map[pid][nid], string_types)
+                assert isinstance(tree._nodes_children_map[pid][nid], str)
             else:
                 assert nid in tree._nodes_children_list[pid]
         # ensure all children have this node registered as parent

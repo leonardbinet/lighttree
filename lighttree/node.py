@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from __future__ import unicode_literals
-import copy
-from future.utils import python_2_unicode_compatible, string_types, text_type
 import uuid
 
 
-@python_2_unicode_compatible
 class Node(object):
     def __init__(
         self,
@@ -21,7 +17,7 @@ class Node(object):
         """
         :param identifier: node identifier, must be unique per tree
         """
-        if identifier is not None and not isinstance(identifier, string_types):
+        if identifier is not None and not isinstance(identifier, str):
             raise ValueError(
                 "Identifier must be a string type, provided type is <%s>"
                 % type(identifier)
@@ -46,7 +42,7 @@ class Node(object):
         if self.repr is not None:
             return self.repr, ""
         if not self.accept_children:
-            return text_type(self.data), ""
+            return str(self.data), ""
         if self.keyed:
             return "{}", ""
         return "[]", ""

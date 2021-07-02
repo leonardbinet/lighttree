@@ -1,4 +1,3 @@
-from six import text_type
 from lighttree import Node, Tree
 
 
@@ -38,7 +37,7 @@ class JsonTree(Tree):
             for sk, el in data.items():
                 self._fill(el, strict=strict, path=path, key=sk)
             return
-        if isinstance(data, (text_type, int, float)):
+        if isinstance(data, (str, int, float)):
             self.insert_node(
                 Node(accept_children=False, repr_=data, data=data),
                 parent_id=path,
