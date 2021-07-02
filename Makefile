@@ -1,5 +1,8 @@
 .PHONY : develop clean clean_pyc lint-diff black test coverage
 
+# Trick to get the args right after the target
+ARGS = $(filter-out $@,$(MAKECMDGOALS))
+
 clean:
 	-python setup.py clean
 
@@ -10,15 +13,18 @@ clean_pyc:
 lint-diff:
 	git diff upstream/master --name-only -- "*.py" | xargs flake8
 
+lint:
+	python -m flake8 lighttree
+
 black:
 	black lighttree tests setup.py
 
 develop:
-	-python -m pip install -e .
+	-python -m pip install -e ".[develop]"
 
 test:
-	-python -m unittest
+	-python -m pytest
 
 coverage:
-	-coverage run --source=./lighttree -m unittest
+	-coverage run --source=./lighttree -m pytest
 	coverage report

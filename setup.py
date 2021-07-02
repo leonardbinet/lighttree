@@ -5,6 +5,14 @@ from setuptools import setup
 
 __version__ = "1.1.0"
 
+develop_requires = [
+    "pre-commit",
+    "black",
+    "flake8",
+    "mock",
+    "coverage",
+    "pytest"
+]
 
 setup(
     name="lighttree",
@@ -15,5 +23,6 @@ setup(
     license="MIT",
     packages=["lighttree"],
     keywords=["tree", "interactive"],
-    install_requires=["future"],
+    extras_require={"develop": develop_requires},
+    tests_require=develop_requires,
 )
