@@ -4,10 +4,11 @@
 import re
 import unicodedata
 
+from typing import Optional, Union, List, Any, Dict
 from lighttree.tree import Tree
 
 
-def is_valid_attr_name(item):
+def is_valid_attr_name(item) -> bool:
     if not isinstance(item, str):
         return False
     if item.startswith("__"):
@@ -19,7 +20,7 @@ def is_valid_attr_name(item):
     return True
 
 
-def _coerce_attr(attr):
+def _coerce_attr(attr) -> Union[str, None]:
     if not len(attr):
         return None
     new_attr = unicodedata.normalize("NFD", attr).encode("ASCII", "ignore").decode()
@@ -54,9 +55,9 @@ class Obj(object):
     _STRING_KEY_CONSTRAINT = True
     _COERCE_ATTR = False
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs) -> None:
         # will store non-valid names
-        self.__d = dict()
+        self.__d: Dict[str, Any] = dict()
         for k, v in kwargs.items():
             if not (
                 isinstance(k, str)
@@ -95,21 +96,21 @@ class Obj(object):
         else:
             super(Obj, self).__setattr__(key, value)
 
-    def __keys(self):
+    def __keys(self) -> List[Any]:
         return list(self.__d.keys()) + [
             k for k in self.__dict__.keys() if k not in ("_REPR_NAME", "_Obj__d")
         ]
 
-    def __contains__(self, item):
+    def __contains__(self, item) -> bool:
         return item in self.__keys()
 
-    def __str__(self):
+    def __str__(self) -> str:
         return "<%s> %s" % (
             str(self.__class__._REPR_NAME or self.__class__.__name__),
             str(sorted(map(str, self.__keys()))),
         )
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         return self.__str__()
 
 
@@ -124,18 +125,20 @@ class TreeBasedObj(Obj):
     _COERCE_ATTR = False
     _ATTR = None
 
-    def __init__(self, tree, root_path=None, depth=1, initial_tree=None):
+    def __init__(
+        self,
+        tree: Tree,
+        root_path: Optional[str] = None,
+        depth: int = 1,
+        initial_tree: Optional[Tree] = None,
+    ) -> None:
         super(TreeBasedObj, self).__init__()
-        if not isinstance(tree, Tree):
-            raise ValueError(
-                'tree must be an instance of "lighttree.tree.Tree", got %s' % type(tree)
-            )
         self._tree = tree
         self._root_path = root_path
         self._initial_tree = initial_tree if initial_tree is not None else tree
         self._expand_attrs(depth)
 
-    def _clone(self, nid, root_path, depth):
+    def _clone(self, nid: str, root_path: str, depth: int) -> "TreeBasedObj":
         _, st = self._tree.subtree(nid)
         return self.__class__(
             tree=st,
@@ -144,11 +147,15 @@ class TreeBasedObj(Obj):
             initial_tree=self._initial_tree,
         )
 
-    def _expand_attrs(self, depth):
+    def _expand_attrs(self, depth: int) -> None:
         if depth:
-            for child_key, child_node in self._tree.children(nid=self._tree.root):
+            r = self._tree.root
+            if r is None:
+                return
+            for child_key, child_node in self._tree.children(nid=r):
                 if self._ATTR:
                     child_key = getattr(child_node, self._ATTR)
+                str_child_key: str
                 if isinstance(child_key, str):
                     if self._COERCE_ATTR:
                         # if invalid coercion, coerce returns None, in this case we keep inital naming
@@ -156,12 +163,13 @@ class TreeBasedObj(Obj):
                     else:
                         str_child_key = child_key
                 else:
-                    str_child_key = "i%d" % child_key
+                    str_child_key = "i%s" % child_key
 
+                child_root: str
                 if self._root_path is not None:
                     child_root = "%s.%s" % (self._root_path, child_key)
                 else:
-                    child_root = child_key
+                    child_root = str(child_key) if child_key else ""
                 self[str_child_key] = self._clone(
                     child_node.identifier, root_path=child_root, depth=depth - 1
                 )
@@ -182,7 +190,7 @@ class TreeBasedObj(Obj):
             r._expand_attrs(depth=1)
         return r
 
-    def _show(self, *args, **kwargs):
+    def _show(self, *args, **kwargs) -> str:
         tree_repr = self._tree.show(*args, **kwargs)
         if self._root_path is None:
             return "<%s>\n%s" % (
@@ -196,8 +204,8 @@ class TreeBasedObj(Obj):
             str(tree_repr),
         )
 
-    def __call__(self, *args, **kwargs):
+    def __call__(self, *args, **kwargs) -> Tree:
         return self._tree
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self._show()
