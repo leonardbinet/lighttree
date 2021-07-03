@@ -19,6 +19,11 @@ lint:
 black:
 	black lighttree tests setup.py
 
+mypy:
+	mypy lighttree
+
+check: mypy black lint
+
 develop:
 	-python -m pip install -e ".[develop]"
 
