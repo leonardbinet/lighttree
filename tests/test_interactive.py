@@ -4,13 +4,11 @@
 from __future__ import unicode_literals
 
 import sys
-
 from unittest import TestCase
-
-from .testing_utils import get_sample_tree
 
 from lighttree import TreeBasedObj
 from lighttree.interactive import Obj, is_valid_attr_name, _coerce_attr
+from .testing_utils import get_sample_tree
 
 
 class ObjTestCase(TestCase):

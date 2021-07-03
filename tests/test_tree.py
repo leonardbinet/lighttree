@@ -7,7 +7,6 @@ from collections import defaultdict
 from operator import itemgetter
 from unittest import TestCase
 
-
 from lighttree import Tree, Node
 from lighttree.exceptions import (
     MultipleRootError,
@@ -19,7 +18,6 @@ from tests.testing_utils import (
     get_sample_tree,
     get_sample_tree_2,
 )
-from future.utils import iteritems
 
 
 def to_key_id(keyed_nodes):
@@ -251,14 +249,14 @@ class TreeCase(TestCase):
         )
 
         # nodes are shallow copies
-        for nid, node in iteritems(t._nodes_map):
+        for nid, node in t._nodes_map.items():
             self.assertIs(t_shallow_clone._nodes_map[nid], node)
         tree_sanity_check(t)
         tree_sanity_check(t_shallow_clone)
 
         # deep = True
         t_custom_deep_clone = t.clone(deep=True)
-        for nid, node in iteritems(t_custom_deep_clone._nodes_map):
+        for nid, node in t_custom_deep_clone._nodes_map.items():
             self.assertIsNot(t._nodes_map[nid], node)
 
     def test_clone_with_subtree(self):
