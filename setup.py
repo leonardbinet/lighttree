@@ -11,7 +11,8 @@ develop_requires = [
     "flake8",
     "mock",
     "coverage",
-    "pytest"
+    "pytest",
+    "mypy",
 ]
 
 setup(
