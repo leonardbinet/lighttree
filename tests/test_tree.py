@@ -51,7 +51,7 @@ class TreeCase(TestCase):
         tree_sanity_check(t)
 
         # wrong node insertion
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AttributeError):
             Tree().insert_node({"key": "a"})
 
     def test_insert_node_below(self):
@@ -124,9 +124,9 @@ class TreeCase(TestCase):
         class MyNotValidClass(object):
             pass
 
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AttributeError):
             t._validate_node_insertion(MyNotValidClass())
-        with self.assertRaises(ValueError):
+        with self.assertRaises(AttributeError):
             t.insert_node({})
 
         # cannot add node with similar id
@@ -297,7 +297,8 @@ class TreeCase(TestCase):
 
     def test_parent(self):
         t = get_sample_tree()
-        self.assertEqual(t.parent_id("root"), None)
+        with self.assertRaises(NotFoundNodeError):
+            t.parent_id("root")
         self.assertEqual(t.parent_id("a"), "root")
         self.assertEqual(t.parent_id("ab"), "a")
         self.assertEqual(t.parent_id("c1"), "c")
@@ -482,11 +483,7 @@ class TreeCase(TestCase):
 
         # full
         self.assertEqual(
-            list(
-                t._iter_nodes_with_location(
-                    nid=None, filter_=None, sort_key=None, reverse=False
-                )
-            ),
+            list(t._iter_nodes_with_location(nid=None, filter_=None, reverse=False)),
             [
                 tuple_extend((), t.get("root")),
                 tuple_extend((False,), t.get("a")),
@@ -502,11 +499,7 @@ class TreeCase(TestCase):
 
         # subtree
         self.assertEqual(
-            list(
-                t._iter_nodes_with_location(
-                    nid="aa", filter_=None, sort_key=None, reverse=False
-                )
-            ),
+            list(t._iter_nodes_with_location(nid="aa", filter_=None, reverse=False)),
             [
                 tuple_extend((), t.get("aa")),
                 tuple_extend((False,), t.get("aa0")),
