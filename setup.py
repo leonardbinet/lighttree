@@ -3,7 +3,7 @@
 
 from setuptools import setup
 
-__version__ = "1.1.1"
+__version__ = "1.1.2"
 
 develop_requires = [
     "pre-commit",
@@ -13,7 +13,7 @@ develop_requires = [
     "coverage",
     "pytest",
     "mypy",
-    "twine"
+    "twine",
 ]
 
 setup(
