@@ -33,3 +33,12 @@ test:
 coverage:
 	-coverage run --source=./lighttree -m pytest
 	coverage report
+
+create_dist:
+	python setup.py sdist bdist_wheel
+
+test_dist: create_dist
+	twine upload -r testpypi dist/*
+
+upload_dist:
+	twine upload dist/*

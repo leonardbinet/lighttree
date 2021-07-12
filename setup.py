@@ -13,6 +13,7 @@ develop_requires = [
     "coverage",
     "pytest",
     "mypy",
+    "twine"
 ]
 
 setup(
