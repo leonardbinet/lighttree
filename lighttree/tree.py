@@ -22,6 +22,11 @@ from .exceptions import MultipleRootError, NotFoundNodeError, DuplicatedNodeErro
 from .utils import STYLES
 
 
+Key = Union[None, str, int]
+KeyedNode = Tuple[Key, Node]
+KeyedTree = Tuple[Key, "Tree"]
+
+
 class Tree(object):
 
     """Principles:
@@ -57,9 +62,7 @@ class Tree(object):
     def __contains__(self, identifier: str) -> bool:
         return identifier in self._nodes_map
 
-    def get(
-        self, nid: str, by_path: bool = False
-    ) -> Tuple[Union[None, str, int], Node]:
+    def get(self, nid: str, by_path: bool = False) -> KeyedNode:
         """Get a node by its id.
         :param nid: str, identifier of node to fetch
         :param by_path: bool, if True nid is the path to the node
@@ -86,9 +89,7 @@ class Tree(object):
             raise ValueError("Expected integer key, got %s" % key)
         return self._nodes_children_list[nid][int(key)]
 
-    def child(
-        self, nid: str, key: Union[int, str], by_path: bool = False
-    ) -> Tuple[Union[None, str, int], Node]:
+    def child(self, nid: str, key: Union[int, str], by_path: bool = False) -> KeyedNode:
         return self.get(self.child_id(nid, key, by_path=by_path))
 
     def get_node_id_by_path(self, path: str) -> str:
@@ -114,7 +115,7 @@ class Tree(object):
             ]
         )
 
-    def get_key(self, nid: str) -> Union[int, str, None]:
+    def get_key(self, nid: str) -> Key:
         """Get a node's key.
         :param nid: str, identifier of node
 
@@ -135,7 +136,7 @@ class Tree(object):
         id_in: Optional[Sequence[str]] = None,
         depth_in: Optional[Sequence[int]] = None,
         filter_: Optional[Callable[[Node], bool]] = None,
-    ) -> List[Tuple[Union[None, int, str], Node]]:
+    ) -> List[KeyedNode]:
         """List nodes.
         :param id_in: list of str, optional, filter nodes among provided identifiers
         :param depth_in: list of int, optional, filter nodes whose depth in tree is among provided values
@@ -234,7 +235,7 @@ class Tree(object):
             new_tree.insert_node(node, parent_id=pid, key=key)
         return new_tree
 
-    def parent(self, nid: str) -> Tuple[Union[None, str, int], Node]:
+    def parent(self, nid: str) -> KeyedNode:
         """Return parent node.
         Return None if given node id is root.
         """
@@ -255,9 +256,7 @@ class Tree(object):
             raise NotFoundNodeError()
         return parent_id
 
-    def children(
-        self, nid: str, by_path: bool = False
-    ) -> List[Tuple[Union[None, str, int], Node]]:
+    def children(self, nid: str, by_path: bool = False) -> List[KeyedNode]:
         """Return set of given node children node ids."""
         return [self.get(id_) for id_ in self.children_ids(nid, by_path=by_path)]
 
@@ -266,9 +265,7 @@ class Tree(object):
             return list(self._nodes_children_map[nid].keys())
         return list(self._nodes_children_list[nid])
 
-    def siblings(
-        self, nid: str, by_path: bool = False
-    ) -> List[Tuple[Union[None, str, int], Node]]:
+    def siblings(self, nid: str, by_path: bool = False) -> List[KeyedNode]:
         """Return set of ids of nodes that share the provided node's parent."""
         return [self.get(id_) for id_ in self.siblings_ids(nid, by_path=by_path)]
 
@@ -297,7 +294,7 @@ class Tree(object):
         from_root: bool = False,
         include_current: bool = False,
         by_path: bool = False,
-    ) -> List[Tuple[Union[None, str, int], Node]]:
+    ) -> List[KeyedNode]:
         """From element to root.
         :param nid:
         :param from_root:
@@ -332,9 +329,7 @@ class Tree(object):
             ancestor_ids = list(reversed(ancestor_ids))
         return ancestor_ids
 
-    def subtree(
-        self, nid: str, deep: bool = False, by_path: bool = False
-    ) -> Tuple[Union[None, str, int], "Tree"]:
+    def subtree(self, nid: str, deep: bool = False, by_path: bool = False) -> KeyedTree:
         if by_path:
             nid = self.get_node_id_by_path(nid)
         t = self.clone(with_nodes=True, new_root=nid, deep=deep)
@@ -344,7 +339,7 @@ class Tree(object):
 
     def leaves(
         self, nid: Optional[str] = None, by_path: bool = False
-    ) -> List[Tuple[Union[None, str, int], Node]]:
+    ) -> List[KeyedNode]:
         """Return leaves under a node subtree."""
         return [self.get(id_) for id_ in self.leaves_ids(nid, by_path=by_path)]
 
@@ -395,7 +390,7 @@ class Tree(object):
         child_id: Optional[str] = None,
         key: Optional[Union[int, str]] = None,
         by_path: bool = False,
-    ) -> Union[None, int, str]:
+    ) -> Key:
         """Insert node, return key
         :param node:
         :param parent_id:
@@ -498,7 +493,7 @@ class Tree(object):
         child_id_below: Optional[str] = None,
         key: Optional[Union[str, int]] = None,
         by_path: bool = False,
-    ) -> Union[int, str, None]:
+    ) -> Key:
         """Return new key"""
         self._validate_tree_insertion(new_tree)
         if new_tree.root is None:
@@ -580,7 +575,7 @@ class Tree(object):
         self._insert_tree_below(new_tree, parent_id, key=subtree_key, by_path=False)
         self._insert_tree_below(child_subtree, child_id_below, key=key, by_path=False)
 
-    def _drop_node(self, nid: str) -> Tuple[Union[None, str, int], Node]:
+    def _drop_node(self, nid: str) -> KeyedNode:
         """Return key, node"""
         if self.children_ids(nid):
             raise ValueError("Cannot drop node having children.")
@@ -611,7 +606,7 @@ class Tree(object):
         nid: str,
         with_children: bool = True,
         by_path: bool = False,
-    ) -> Tuple[Union[None, str, int], Node]:
+    ) -> KeyedNode:
         """If with_children is False, children of this node will take as new parent the dropped node parent.
         Possible only if node type is same as parent node type.
 
@@ -645,9 +640,7 @@ class Tree(object):
             self._insert_tree_below(new_tree=st, parent_id=pid, key=k, by_path=False)
         return removed_key, node
 
-    def drop_subtree(
-        self, nid: str, by_path: bool = False
-    ) -> Tuple[Union[None, str, int], "Tree"]:
+    def drop_subtree(self, nid: str, by_path: bool = False) -> KeyedTree:
         if by_path:
             nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
@@ -663,7 +656,7 @@ class Tree(object):
         filter_: Optional[Callable[[Union[None, str, int], Node], bool]] = None,
         filter_through: bool = False,
         reverse: bool = False,
-    ) -> Iterable[Tuple[Union[None, int, str], Node]]:
+    ) -> Iterable[KeyedNode]:
         """Python generator traversing the tree (or a subtree) with optional node filtering.
 
         Inspired by treelib implementation https://github.com/caesar0301/treelib/blob/master/treelib/tree.py#L374
@@ -781,7 +774,7 @@ class Tree(object):
         filter_: Optional[Callable[[Node], bool]],
         reverse: bool,
         is_last_list: Optional[List[bool]] = None,
-    ) -> Iterable[Tuple[Tuple[bool, ...], Union[None, int, str], Node]]:
+    ) -> Iterable[Tuple[Tuple[bool, ...], Key, Node]]:
         """Yield nodes with information on how they are placed.
         :param nid: starting node identifier
         :param filter_: filter function applied on nodes
