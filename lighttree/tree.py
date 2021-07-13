@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     cast,
     Dict,
+    Any,
 )
 from collections import defaultdict
 from operator import itemgetter
@@ -718,7 +719,7 @@ class Tree(object):
         limit: Optional[int] = None,
         line_max_length: int = 60,
         key_delimiter: str = ": ",
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """Return tree structure in hierarchy style.
 

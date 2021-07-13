@@ -1,8 +1,11 @@
-from lighttree import Node, Tree
+from typing import Dict, Optional, Any, Union, List
+from lighttree import Node, Tree, Key
 
 
 class JsonTree(Tree):
-    def __init__(self, d=None, strict=True, path_separator="."):
+    def __init__(
+        self, d: Dict = None, strict: bool = True, path_separator: str = "."
+    ) -> None:
         """
         :param d:
         :param strict: if False, will convert tuples into arrays, else raise error
@@ -13,14 +16,16 @@ class JsonTree(Tree):
             self._fill(d, strict=strict, key=None)
 
     @staticmethod
-    def _concat(a, b):
+    def _concat(a: Any, b: Any) -> str:
         if not a and not b:
             return ""
         if not a:
             return str(b)
         return ".".join([str(a), str(b)])
 
-    def _fill(self, data, key, strict, path=None):
+    def _fill(
+        self, data: Any, key: Key, strict: bool, path: Optional[str] = None
+    ) -> None:
         if isinstance(data, list) or not strict and isinstance(data, tuple):
             k = self.insert_node(
                 Node(keyed=False), parent_id=path, key=key, by_path=True
@@ -50,10 +55,12 @@ class JsonTree(Tree):
             return
         raise TypeError("Unsupported type %s" % type(data))
 
-    def to_dict(self):
+    def to_dict(self) -> Union[Dict, List, None]:
+        if self.root is None:
+            return None
         return self._to_dict(self.root)
 
-    def _to_dict(self, nid):
+    def _to_dict(self, nid: str) -> Any:
         _, n = self.get(nid)
         if not n.accept_children:
             return n.data
@@ -62,7 +69,7 @@ class JsonTree(Tree):
             for sk, sn in self.children(n.identifier):
                 d[sk] = self._to_dict(sn.identifier)
             return d
-        d = []
+        l_ = []
         for _, sn in self.children(n.identifier):
-            d.append(self._to_dict(sn.identifier))
-        return d
+            l_.append(self._to_dict(sn.identifier))
+        return l_

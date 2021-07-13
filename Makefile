@@ -20,7 +20,7 @@ black:
 	black lighttree tests setup.py
 
 mypy:
-	mypy lighttree
+	mypy lighttree --disallow-untyped-defs
 
 check: mypy black lint
 

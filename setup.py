@@ -24,6 +24,9 @@ setup(
     author_email="leonardbinet@gmail.com",
     license="MIT",
     packages=["lighttree"],
+    package_data={
+        "lighttree": ["py.typed"],
+    },
     keywords=["tree", "interactive"],
     extras_require={"develop": develop_requires},
     tests_require=develop_requires,

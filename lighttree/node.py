@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 import uuid
-from typing import Optional, Any, Tuple
+from typing import Optional, Any, Tuple, Union
 
 
 class Node(object):
@@ -12,7 +12,7 @@ class Node(object):
         auto_uuid: bool = True,
         keyed: bool = True,
         accept_children: bool = True,
-        repr_: Optional[str] = None,
+        repr_: Optional[Union[str, float]] = None,
         data: Any = None,
     ) -> None:
         """
@@ -25,10 +25,10 @@ class Node(object):
         self.identifier = identifier
         self.keyed = keyed
         self.accept_children = accept_children
-        self.repr = repr_
+        self.repr = str(repr_) if repr_ is not None else None
         self.data = data
 
-    def line_repr(self, depth: int, **kwargs) -> Tuple[str, str]:
+    def line_repr(self, depth: int, **kwargs: Any) -> Tuple[str, str]:
         """Control how node is displayed in tree representation.
         _
         ├── one                                           end
@@ -43,7 +43,7 @@ class Node(object):
             return "{}", ""
         return "[]", ""
 
-    def __eq__(self, other) -> bool:
+    def __eq__(self, other: Any) -> bool:
         if not isinstance(other, self.__class__):
             return False
         return self.identifier == other.identifier
