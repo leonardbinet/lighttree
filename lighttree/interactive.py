@@ -8,7 +8,7 @@ from typing import Optional, Union, List, Any, Dict
 from lighttree.tree import Tree
 
 
-def is_valid_attr_name(item) -> bool:
+def is_valid_attr_name(item: Any) -> bool:
     if not isinstance(item, str):
         return False
     if item.startswith("__"):
@@ -20,7 +20,7 @@ def is_valid_attr_name(item) -> bool:
     return True
 
 
-def _coerce_attr(attr) -> Union[str, None]:
+def _coerce_attr(attr: Any) -> Union[str, None]:
     if not len(attr):
         return None
     new_attr = unicodedata.normalize("NFD", attr).encode("ASCII", "ignore").decode()
@@ -55,7 +55,7 @@ class Obj(object):
     _STRING_KEY_CONSTRAINT = True
     _COERCE_ATTR = False
 
-    def __init__(self, **kwargs) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         # will store non-valid names
         self.__d: Dict[str, Any] = dict()
         for k, v in kwargs.items():
@@ -69,14 +69,14 @@ class Obj(object):
                 )
             self[k] = v
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any) -> Any:
         # when calling d[key]
         if is_valid_attr_name(item):
             return self.__getattribute__(item)
         else:
             return self.__d[item]
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: Any, value: Any) -> None:
         # d[key] = value
         if not isinstance(key, str):
             if self._STRING_KEY_CONSTRAINT:
@@ -101,7 +101,7 @@ class Obj(object):
             k for k in self.__dict__.keys() if k not in ("_REPR_NAME", "_Obj__d")
         ]
 
-    def __contains__(self, item) -> bool:
+    def __contains__(self, item: Any) -> bool:
         return item in self.__keys()
 
     def __str__(self) -> str:
@@ -174,14 +174,14 @@ class TreeBasedObj(Obj):
                     child_node.identifier, root_path=child_root, depth=depth - 1
                 )
 
-    def __getattribute__(self, item):
+    def __getattribute__(self, item: Any) -> Any:
         # called by __getattribute__ will always refer to valid attribute item
         r = super(TreeBasedObj, self).__getattribute__(item)
         if isinstance(r, TreeBasedObj):
             r._expand_attrs(depth=1)
         return r
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: Any) -> Any:
         if is_valid_attr_name(item):
             r = super(TreeBasedObj, self).__getattribute__(item)
         else:
@@ -190,7 +190,7 @@ class TreeBasedObj(Obj):
             r._expand_attrs(depth=1)
         return r
 
-    def _show(self, *args, **kwargs) -> str:
+    def _show(self, *args: Any, **kwargs: Any) -> str:
         tree_repr = self._tree.show(*args, **kwargs)
         if self._root_path is None:
             return "<%s>\n%s" % (
@@ -204,7 +204,7 @@ class TreeBasedObj(Obj):
             str(tree_repr),
         )
 
-    def __call__(self, *args, **kwargs) -> Tree:
+    def __call__(self, *args: Any, **kwargs: Any) -> Tree:
         return self._tree
 
     def __str__(self) -> str:

@@ -536,23 +536,27 @@ class TreeCase(TestCase):
 
     def test_prefix_repr(self):
         self.assertEqual(
-            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=[]), ""
+            Tree._line_prefix_repr(
+                line_type="ascii-ex",
+                is_last_list=(),
+            ),
+            "",
         )
         self.assertEqual(
-            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=[True]), "└── "
+            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=(True,)), "└── "
         )
         self.assertEqual(
-            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=[False]), "├── "
+            Tree._line_prefix_repr(line_type="ascii-ex", is_last_list=(False,)), "├── "
         )
         self.assertEqual(
             Tree._line_prefix_repr(
-                line_type="ascii-ex", is_last_list=[True, False, True]
+                line_type="ascii-ex", is_last_list=(True, False, True)
             ),
             "    │   └── ",
         )
         self.assertEqual(
             Tree._line_prefix_repr(
-                line_type="ascii-ex", is_last_list=[False, False, False]
+                line_type="ascii-ex", is_last_list=(False, False, False)
             ),
             "│   │   ├── ",
         )

@@ -1,8 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
+from typing import Dict, Tuple
 
-STYLES = {
+STYLES: Dict[str, Tuple[str, str, str]] = {
     "ascii": ("|", "|-- ", "+-- "),
     "ascii-ex": ("\u2502", "\u251c\u2500\u2500 ", "\u2514\u2500\u2500 "),
     "ascii-exr": ("\u2502", "\u251c\u2500\u2500 ", "\u2570\u2500\u2500 "),

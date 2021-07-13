@@ -13,6 +13,7 @@ from typing import (
     Iterable,
     cast,
     Dict,
+    Any,
 )
 from collections import defaultdict
 from operator import itemgetter
@@ -718,7 +719,7 @@ class Tree(object):
         limit: Optional[int] = None,
         line_max_length: int = 60,
         key_delimiter: str = ": ",
-        **kwargs
+        **kwargs: Any
     ) -> str:
         """Return tree structure in hierarchy style.
 
@@ -832,13 +833,13 @@ class Tree(object):
         if not is_last_list:
             return ""
         dt_vertical_line, dt_line_box, dt_line_corner = STYLES[line_type]
-        leading = "".join(
+        leading: str = "".join(
             [
                 dt_vertical_line + " " * 3 if not is_last else " " * 4
                 for is_last in cast(Iterable[bool], is_last_list[0:-1])
             ]
         )
-        lasting = dt_line_corner if is_last_list[-1] else dt_line_box
+        lasting: str = dt_line_corner if is_last_list[-1] else dt_line_box
         return leading + lasting
 
     def merge(
