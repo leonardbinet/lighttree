@@ -51,9 +51,9 @@ class Obj(object):
     with a figure), will be only available through dict `__getitem__` access.
     """
 
-    _REPR_NAME = None
-    _STRING_KEY_CONSTRAINT = True
-    _COERCE_ATTR = False
+    _REPR_NAME: Optional[str] = None
+    _STRING_KEY_CONSTRAINT: bool = True
+    _COERCE_ATTR: bool = False
 
     def __init__(self, **kwargs: Any) -> None:
         # will store non-valid names
@@ -122,8 +122,8 @@ class TreeBasedObj(Obj):
     useless instances, only direct children of accessed nodes are expanded.
     """
 
-    _COERCE_ATTR = False
-    _ATTR = None
+    _COERCE_ATTR: bool = False
+    _ATTR: Optional[str] = None
 
     def __init__(
         self,
