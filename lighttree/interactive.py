@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import re
 import unicodedata
 
@@ -32,7 +29,7 @@ def _coerce_attr(attr: Any) -> Union[str, None]:
     return None
 
 
-class Obj(object):
+class Obj:
     """Object class that allows to get items both by attribute `__getattribute__` access: `obj.attribute` or by dict
     `__getitem__` access:
     >>> obj = Obj(key='value')
