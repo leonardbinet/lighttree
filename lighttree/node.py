@@ -1,18 +1,17 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import uuid
-from typing import Optional, Any, Tuple, Union
+from typing import Optional, Any, Tuple
+
+NodeId = str
 
 
 class Node(object):
     def __init__(
         self,
-        identifier: Optional[str] = None,
+        identifier: Optional[NodeId] = None,
         auto_uuid: bool = True,
         keyed: bool = True,
         accept_children: bool = True,
-        repr_: Optional[Union[str, float]] = None,
+        repr_: Optional[str] = None,
         data: Any = None,
     ) -> None:
         """
@@ -25,7 +24,7 @@ class Node(object):
         self.identifier = identifier
         self.keyed = keyed
         self.accept_children = accept_children
-        self.repr = str(repr_) if repr_ is not None else None
+        self.repr = repr_
         self.data = data
 
     def line_repr(self, depth: int, **kwargs: Any) -> Tuple[str, str]:

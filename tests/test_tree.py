@@ -1,8 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-from __future__ import unicode_literals
-
 from collections import defaultdict
 from operator import itemgetter
 from unittest import TestCase
@@ -895,17 +890,6 @@ class TreeCase(TestCase):
 
     def test_subtree(self):
         t = get_sample_tree()
-
-        # by path
-        k, st = t.subtree(nid="a.a", by_path=True)
-        self.assertEqual(k, "a")
-        self.assertEqual(
-            st.show(),
-            """[]
-├── AA0
-└── AA1
-""",
-        )
 
         # by id
         nid = t.get_node_id_by_path("a.a")

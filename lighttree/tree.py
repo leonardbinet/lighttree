@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import copy
 
 from typing import (
@@ -18,14 +15,16 @@ from typing import (
 from collections import defaultdict
 from operator import itemgetter
 
-from lighttree.node import Node
+from lighttree.node import Node, NodeId
 from .exceptions import MultipleRootError, NotFoundNodeError, DuplicatedNodeError
 from .utils import STYLES
 
 
+# root has no key (None), keyed node has children with str keys, unkeyed node has children with int keys
 Key = Union[None, str, int]
 KeyedNode = Tuple[Key, Node]
 KeyedTree = Tuple[Key, "Tree"]
+Path = str
 
 
 class Tree(object):
@@ -48,34 +47,29 @@ class Tree(object):
         self.path_separator = path_separator
 
         # nodes references and hierarchy in tree
-        self.root: Optional[str] = None
+        self.root: Optional[NodeId] = None
         # node identifier -> node
-        self._nodes_map: Dict[str, Node] = {}
+        self._nodes_map: Dict[NodeId, Node] = {}
         # node identifier -> parent node identifier
-        self._nodes_parent: Dict[str, Optional[str]] = defaultdict(lambda: None)
+        self._nodes_parent: Dict[NodeId, Optional[NodeId]] = defaultdict(lambda: None)
         # "map" node identifier -> map of children nodes identifier -> key
-        self._nodes_children_map: Dict[str, Dict[str, Union[int, str]]] = defaultdict(
-            dict
-        )
+        self._nodes_children_map: Dict[NodeId, Dict[NodeId, Key]] = defaultdict(dict)
         # "list" node identifier -> children nodes identifiers
-        self._nodes_children_list: Dict[str, List[str]] = defaultdict(list)
+        self._nodes_children_list: Dict[NodeId, List[NodeId]] = defaultdict(list)
 
-    def __contains__(self, identifier: str) -> bool:
+    def __contains__(self, identifier: NodeId) -> bool:
         return identifier in self._nodes_map
 
-    def get(self, nid: str, by_path: bool = False) -> KeyedNode:
+    def get(self, nid: NodeId) -> KeyedNode:
         """Get a node by its id.
         :param nid: str, identifier of node to fetch
-        :param by_path: bool, if True nid is the path to the node
         :rtype: lighttree.node.Node
         """
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
         return self.get_key(nid), self._nodes_map[nid]
 
-    def child_id(self, nid: str, key: Union[str, int], by_path: bool = False) -> str:
-        _, node = self.get(nid, by_path=by_path)
+    def child_id(self, nid: NodeId, key: Key) -> NodeId:
+        _, node = self.get(nid)
         if node.keyed:
             child_id = next(
                 (cid for cid, k in self._nodes_children_map[nid].items() if k == key),
@@ -84,16 +78,14 @@ class Tree(object):
             if child_id is None:
                 raise ValueError("No child of key %s below %s" % (key, nid))
             return child_id
-        try:
-            int(key)
-        except (ValueError, TypeError):
-            raise ValueError("Expected integer key, got %s" % key)
+        if not isinstance(key, (str, int)):
+            raise ValueError("Expected integer 'castable' key, got %s" % key)
         return self._nodes_children_list[nid][int(key)]
 
-    def child(self, nid: str, key: Union[int, str], by_path: bool = False) -> KeyedNode:
-        return self.get(self.child_id(nid, key, by_path=by_path))
+    def child(self, nid: NodeId, key: Key) -> KeyedNode:
+        return self.get(self.child_id(nid, key))
 
-    def get_node_id_by_path(self, path: str) -> str:
+    def get_node_id_by_path(self, path: Path) -> NodeId:
         nid = self.root
         if nid is None:
             raise ValueError("Empty tree")
@@ -106,7 +98,7 @@ class Tree(object):
             raise ValueError("Empty tree")
         return nid
 
-    def get_path(self, nid: str) -> str:
+    def get_path(self, nid: NodeId) -> Path:
         return self.path_separator.join(
             [
                 str(k)
@@ -116,7 +108,7 @@ class Tree(object):
             ]
         )
 
-    def get_key(self, nid: str) -> Key:
+    def get_key(self, nid: NodeId) -> Key:
         """Get a node's key.
         :param nid: str, identifier of node
 
@@ -134,7 +126,7 @@ class Tree(object):
 
     def list(
         self,
-        id_in: Optional[Sequence[str]] = None,
+        id_in: Optional[Sequence[NodeId]] = None,
         depth_in: Optional[Sequence[int]] = None,
         filter_: Optional[Callable[[Node], bool]] = None,
     ) -> List[KeyedNode]:
@@ -160,10 +152,11 @@ class Tree(object):
 
     def _ensure_present(
         self,
-        nid: Optional[str],
+        nid: Optional[NodeId],
         defaults_to_root: bool = False,
         allow_empty: bool = False,
-    ) -> Union[None, str]:
+    ) -> Optional[NodeId]:
+        # TODO - split method based on intent
         if nid is None:
             if not self.is_empty() and defaults_to_root:
                 return self.root
@@ -211,7 +204,10 @@ class Tree(object):
         return self.__class__()
 
     def clone(
-        self, with_nodes: bool = True, deep: bool = False, new_root: str = None
+        self,
+        with_nodes: bool = True,
+        deep: bool = False,
+        new_root: Optional[NodeId] = None,
     ) -> "Tree":
         """Clone current instance, with or without nodes.
         :rtype: :class:`lighttree.tree.Tree`
@@ -236,7 +232,7 @@ class Tree(object):
             new_tree.insert_node(node, parent_id=pid, key=key)
         return new_tree
 
-    def parent(self, nid: str) -> KeyedNode:
+    def parent(self, nid: NodeId) -> KeyedNode:
         """Return parent node.
         Return None if given node id is root.
         """
@@ -245,11 +241,9 @@ class Tree(object):
             raise NotFoundNodeError("Node <%s> has no parent" % nid)
         return self.get(pid)
 
-    def parent_id(self, nid: str, by_path: bool = False) -> str:
+    def parent_id(self, nid: NodeId) -> NodeId:
         if nid == self.root:
             raise NotFoundNodeError("Root node has not parent")
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
         parent_id = self._nodes_parent[nid]
         if parent_id is None:
@@ -257,22 +251,20 @@ class Tree(object):
             raise NotFoundNodeError()
         return parent_id
 
-    def children(self, nid: str, by_path: bool = False) -> List[KeyedNode]:
+    def children(self, nid: NodeId) -> List[KeyedNode]:
         """Return set of given node children node ids."""
-        return [self.get(id_) for id_ in self.children_ids(nid, by_path=by_path)]
+        return [self.get(id_) for id_ in self.children_ids(nid)]
 
-    def children_ids(self, nid: str, by_path: bool = False) -> List[str]:
-        if self.get(nid, by_path=by_path)[1].keyed:
+    def children_ids(self, nid: NodeId) -> List[NodeId]:
+        if self.get(nid)[1].keyed:
             return list(self._nodes_children_map[nid].keys())
         return list(self._nodes_children_list[nid])
 
-    def siblings(self, nid: str, by_path: bool = False) -> List[KeyedNode]:
+    def siblings(self, nid: NodeId) -> List[KeyedNode]:
         """Return set of ids of nodes that share the provided node's parent."""
-        return [self.get(id_) for id_ in self.siblings_ids(nid, by_path=by_path)]
+        return [self.get(id_) for id_ in self.siblings_ids(nid)]
 
-    def siblings_ids(self, nid: str, by_path: bool = False) -> List[str]:
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
+    def siblings_ids(self, nid: NodeId) -> List[NodeId]:
         self._ensure_present(nid)
         if nid == self.root:
             return []
@@ -281,44 +273,36 @@ class Tree(object):
             return []
         return list(set(self.children_ids(parent_id)).difference({nid}))
 
-    def is_leaf(self, nid: str, by_path: bool = False) -> bool:
+    def is_leaf(self, nid: NodeId) -> bool:
         """Return is node is a leaf in this tree."""
-        return len(self.children_ids(nid, by_path=by_path)) == 0
+        return len(self.children_ids(nid)) == 0
 
-    def depth(self, nid: str, by_path: bool = False) -> int:
+    def depth(self, nid: NodeId) -> int:
         """Return node depth, 0 means root."""
-        return len(self.ancestors_ids(nid, by_path=by_path))
+        return len(self.ancestors_ids(nid))
 
     def ancestors(
         self,
-        nid: str,
+        nid: NodeId,
         from_root: bool = False,
         include_current: bool = False,
-        by_path: bool = False,
     ) -> List[KeyedNode]:
         """From element to root.
         :param nid:
         :param from_root:
         :param include_current:
-        :param by_path:
         :return:
         """
         return [
-            self.get(id_)
-            for id_ in self.ancestors_ids(
-                nid, from_root, include_current, by_path=by_path
-            )
+            self.get(id_) for id_ in self.ancestors_ids(nid, from_root, include_current)
         ]
 
     def ancestors_ids(
         self,
-        nid: str,
+        nid: NodeId,
         from_root: bool = False,
         include_current: bool = False,
-        by_path: bool = False,
-    ) -> List[str]:
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
+    ) -> List[NodeId]:
         self._ensure_present(nid)
         ancestor_ids = [nid] if include_current else []
         if nid == self.root:
@@ -330,32 +314,27 @@ class Tree(object):
             ancestor_ids = list(reversed(ancestor_ids))
         return ancestor_ids
 
-    def subtree(self, nid: str, deep: bool = False, by_path: bool = False) -> KeyedTree:
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
+    def subtree(self, nid: NodeId, deep: bool = False) -> KeyedTree:
         t = self.clone(with_nodes=True, new_root=nid, deep=deep)
         if t.root is None:
             return None, t
         return self.get_key(t.root), t
 
-    def leaves(
-        self, nid: Optional[str] = None, by_path: bool = False
-    ) -> List[KeyedNode]:
+    def leaves(self, nid: Optional[NodeId] = None) -> List[KeyedNode]:
         """Return leaves under a node subtree."""
-        return [self.get(id_) for id_ in self.leaves_ids(nid, by_path=by_path)]
+        return [self.get(id_) for id_ in self.leaves_ids(nid)]
 
-    def leaves_ids(self, nid: Optional[str] = None, by_path: bool = False) -> List[str]:
-        tree = self if nid is None else self.subtree(nid, by_path=by_path)[1]
+    def leaves_ids(self, nid: Optional[NodeId] = None) -> List[NodeId]:
+        tree = self if nid is None else self.subtree(nid)[1]
         return [id_ for id_ in tree._nodes_map.keys() if tree.is_leaf(id_)]
 
     def insert(
         self,
         item: Union[Node, "Tree"],
-        parent_id: Optional[str] = None,
-        child_id: Optional[str] = None,
-        child_id_below: Optional[str] = None,
-        key: Optional[Union[int, str]] = None,
-        by_path: bool = False,
+        parent_id: Optional[NodeId] = None,
+        child_id: Optional[NodeId] = None,
+        child_id_below: Optional[NodeId] = None,
+        key: Key = None,
     ) -> "Tree":
         if isinstance(item, Node):
             if child_id_below is not None:
@@ -367,7 +346,6 @@ class Tree(object):
                 parent_id=parent_id,
                 child_id=child_id,
                 key=key,
-                by_path=by_path,
             )
             return self
         if isinstance(item, Tree):
@@ -377,7 +355,6 @@ class Tree(object):
                 child_id=child_id,
                 child_id_below=child_id_below,
                 key=key,
-                by_path=by_path,
             )
             return self
         raise ValueError(
@@ -387,10 +364,9 @@ class Tree(object):
     def insert_node(
         self,
         node: Node,
-        parent_id: Optional[str] = None,
-        child_id: Optional[str] = None,
-        key: Optional[Union[int, str]] = None,
-        by_path: bool = False,
+        parent_id: Optional[NodeId] = None,
+        child_id: Optional[NodeId] = None,
+        key: Key = None,
     ) -> Key:
         """Insert node, return key
         :param node:
@@ -403,17 +379,16 @@ class Tree(object):
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
         if child_id is not None:
-            self._insert_node_above(node, child_id=child_id, key=key, by_path=by_path)
+            self._insert_node_above(node, child_id=child_id, key=key)
             return None
-        self._insert_node_below(node, parent_id=parent_id, key=key, by_path=by_path)
+        self._insert_node_below(node, parent_id=parent_id, key=key)
         return self.get_key(node.identifier)
 
     def _insert_node_below(
         self,
         node: Node,
-        parent_id: Optional[str],
-        key: Union[None, int, str],
-        by_path: bool,
+        parent_id: Optional[NodeId],
+        key: Key,
     ) -> None:
         # insertion at root
         if parent_id is None:
@@ -425,8 +400,6 @@ class Tree(object):
             self._nodes_map[node.identifier] = node
             return
 
-        if by_path:
-            parent_id = self.get_node_id_by_path(path=parent_id)
         self._ensure_present(parent_id)
         node_id = node.identifier
 
@@ -460,11 +433,7 @@ class Tree(object):
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
 
-    def _insert_node_above(
-        self, node: Node, child_id: str, key: Union[None, int, str], by_path: bool
-    ) -> None:
-        if by_path:
-            child_id = self.get_node_id_by_path(path=child_id)
+    def _insert_node_above(self, node: Node, child_id: NodeId, key: Key) -> None:
         self._ensure_present(child_id)
         # get parent_id before dropping subtree
         try:
@@ -475,25 +444,20 @@ class Tree(object):
             has_parent = False
         subtree_key, child_subtree = self.drop_subtree(nid=child_id)
         if has_parent:
-            self._insert_node_below(
-                node=node, parent_id=parent_id, key=subtree_key, by_path=False
-            )
+            self._insert_node_below(node=node, parent_id=parent_id, key=subtree_key)
         else:
-            self._insert_node_below(
-                node=node, parent_id=None, key=subtree_key, by_path=False
-            )
+            self._insert_node_below(node=node, parent_id=None, key=subtree_key)
         self._insert_tree_below(
-            new_tree=child_subtree, parent_id=node.identifier, key=key, by_path=False
+            new_tree=child_subtree, parent_id=node.identifier, key=key
         )
 
     def insert_tree(
         self,
         new_tree: "Tree",
-        parent_id: Optional[str] = None,
-        child_id: Optional[str] = None,
-        child_id_below: Optional[str] = None,
-        key: Optional[Union[str, int]] = None,
-        by_path: bool = False,
+        parent_id: Optional[NodeId] = None,
+        child_id: Optional[NodeId] = None,
+        child_id_below: Optional[NodeId] = None,
+        key: Key = None,
     ) -> Key:
         """Return new key"""
         self._validate_tree_insertion(new_tree)
@@ -507,12 +471,9 @@ class Tree(object):
                 child_id=child_id,
                 child_id_below=child_id_below,
                 key=key,
-                by_path=by_path,
             )
         else:
-            self._insert_tree_below(
-                new_tree, parent_id=parent_id, key=key, by_path=by_path
-            )
+            self._insert_tree_below(new_tree, parent_id=parent_id, key=key)
         if new_tree.root is None:
             # not possible, but for typing
             raise ValueError("Empty inserted tree")
@@ -521,17 +482,14 @@ class Tree(object):
     def _insert_tree_below(
         self,
         new_tree: "Tree",
-        parent_id: Optional[str],
-        key: Union[None, str, int],
-        by_path: bool,
+        parent_id: Optional[NodeId],
+        key: Key,
     ) -> "Tree":
         if parent_id is None:
             # insertion at root requires tree to be empty
             if not self.is_empty():
                 raise MultipleRootError("A tree takes one root merely.")
         else:
-            if by_path:
-                parent_id = self.get_node_id_by_path(parent_id)
             self._ensure_present(parent_id)
         self._validate_tree_insertion(new_tree)
 
@@ -549,18 +507,13 @@ class Tree(object):
     def _insert_tree_above(
         self,
         new_tree: "Tree",
-        child_id: str,
-        child_id_below: Optional[str],
-        key: Union[None, str, int],
-        by_path: bool,
+        child_id: NodeId,
+        child_id_below: Optional[NodeId],
+        key: Key,
     ) -> None:
         # make all checks before modifying tree
-        if by_path:
-            child_id = self.get_node_id_by_path(child_id)
         self._ensure_present(child_id)
         if child_id_below is not None:
-            if by_path:
-                child_id_below = self.get_node_id_by_path(child_id_below)
             new_tree._ensure_present(child_id_below)
         else:
             new_tree_leaves = new_tree.leaves_ids()
@@ -573,10 +526,10 @@ class Tree(object):
             child_id_below = new_tree_leaves.pop()
         parent_id = self.parent_id(child_id)
         subtree_key, child_subtree = self.drop_subtree(child_id)
-        self._insert_tree_below(new_tree, parent_id, key=subtree_key, by_path=False)
-        self._insert_tree_below(child_subtree, child_id_below, key=key, by_path=False)
+        self._insert_tree_below(new_tree, parent_id, key=subtree_key)
+        self._insert_tree_below(child_subtree, child_id_below, key=key)
 
-    def _drop_node(self, nid: str) -> KeyedNode:
+    def _drop_node(self, nid: NodeId) -> KeyedNode:
         """Return key, node"""
         if self.children_ids(nid):
             raise ValueError("Cannot drop node having children.")
@@ -604,17 +557,14 @@ class Tree(object):
 
     def drop_node(
         self,
-        nid: str,
+        nid: NodeId,
         with_children: bool = True,
-        by_path: bool = False,
     ) -> KeyedNode:
         """If with_children is False, children of this node will take as new parent the dropped node parent.
         Possible only if node type is same as parent node type.
 
         Return key, node.
         """
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
         self._ensure_present(nid)
 
         children_ids = self.children_ids(nid)
@@ -638,12 +588,10 @@ class Tree(object):
         self.drop_node(nid, with_children=True)
         for cid in children_ids:
             k, st = removed_subtree.subtree(cid)
-            self._insert_tree_below(new_tree=st, parent_id=pid, key=k, by_path=False)
+            self._insert_tree_below(new_tree=st, parent_id=pid, key=k)
         return removed_key, node
 
-    def drop_subtree(self, nid: str, by_path: bool = False) -> KeyedTree:
-        if by_path:
-            nid = self.get_node_id_by_path(nid)
+    def drop_subtree(self, nid: NodeId) -> KeyedTree:
         self._ensure_present(nid)
         key, removed_subtree = self.subtree(nid)
         self.drop_node(nid=nid, with_children=True)
@@ -651,8 +599,7 @@ class Tree(object):
 
     def expand_tree(
         self,
-        nid: Optional[str] = None,
-        by_path: bool = False,
+        nid: Optional[NodeId] = None,
         mode: str = "depth",
         filter_: Optional[Callable[[Union[None, str, int], Node], bool]] = None,
         filter_through: bool = False,
@@ -672,8 +619,6 @@ class Tree(object):
         """
         if mode not in ("depth", "width"):
             raise NotImplementedError("Traversal mode '%s' is not supported" % mode)
-        if nid is not None and by_path:
-            nid = self.get_node_id_by_path(nid)
         nid = self._ensure_present(nid, defaults_to_root=True, allow_empty=True)
         if nid is not None:
             key, node = self.get(nid)
@@ -710,8 +655,7 @@ class Tree(object):
 
     def show(
         self,
-        nid: Optional[str] = None,
-        by_path: bool = False,
+        nid: Optional[NodeId] = None,
         filter_: Optional[Callable[[Node], bool]] = None,
         display_key: bool = True,
         reverse: bool = False,
@@ -736,8 +680,6 @@ class Tree(object):
 
         """
         output = ""
-        if nid is not None and by_path:
-            nid = self.get_node_id_by_path(nid)
 
         for is_last_list, key, node in self._iter_nodes_with_location(
             nid, filter_, reverse
@@ -771,7 +713,7 @@ class Tree(object):
 
     def _iter_nodes_with_location(
         self,
-        nid: Optional[str],
+        nid: Optional[NodeId],
         filter_: Optional[Callable[[Node], bool]],
         reverse: bool,
         is_last_list: Optional[List[bool]] = None,
@@ -842,9 +784,7 @@ class Tree(object):
         lasting: str = dt_line_corner if is_last_list[-1] else dt_line_box
         return leading + lasting
 
-    def merge(
-        self, new_tree: "Tree", nid: Optional[str] = None, by_path: bool = False
-    ) -> "Tree":
+    def merge(self, new_tree: "Tree", nid: Optional[NodeId] = None) -> "Tree":
         """Merge "new_tree" on current tree by pasting its root children on current tree "nid" node.
 
         Consider the following trees:
@@ -874,9 +814,6 @@ class Tree(object):
         other cases new_tree root is not pasted.
 
         """
-        if nid is not None and by_path:
-            nid = self.get_node_id_by_path(nid)
-
         if not isinstance(new_tree, self.__class__):
             raise ValueError(
                 'Wrong type of "new_tree", expected <%s>, got <%s>'
@@ -884,7 +821,7 @@ class Tree(object):
             )
 
         if self.is_empty():
-            return self.insert(new_tree, parent_id=None, by_path=False)
+            return self.insert(new_tree, parent_id=None)
 
         nid = self._ensure_present(nid, defaults_to_root=True)
 
