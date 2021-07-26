@@ -1,9 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 from setuptools import setup
 
-__version__ = "1.1.4"
+__version__ = "1.2.0"
 
 develop_requires = [
     "pre-commit",
