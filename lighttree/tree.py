@@ -11,6 +11,9 @@ from typing import (
     cast,
     Dict,
     Any,
+    Generic,
+    TypeVar,
+    Iterator,
 )
 from collections import defaultdict
 from operator import itemgetter
@@ -22,12 +25,14 @@ from .utils import STYLES
 
 # root has no key (None), keyed node has children with str keys, unkeyed node has children with int keys
 Key = Union[None, str, int]
-KeyedNode = Tuple[Key, Node]
 KeyedTree = Tuple[Key, "Tree"]
 Path = str
 
+GenericNode = TypeVar("GenericNode", bound=Node)
+KeyedNode = Tuple[Key, GenericNode]
 
-class Tree(object):
+
+class Tree(Generic[GenericNode]):
 
     """Principles:
     - each node is identified by an id
@@ -49,7 +54,7 @@ class Tree(object):
         # nodes references and hierarchy in tree
         self.root: Optional[NodeId] = None
         # node identifier -> node
-        self._nodes_map: Dict[NodeId, Node] = {}
+        self._nodes_map: Dict[NodeId, GenericNode] = {}
         # node identifier -> parent node identifier
         self._nodes_parent: Dict[NodeId, Optional[NodeId]] = defaultdict(lambda: None)
         # "map" node identifier -> map of children nodes identifier -> key
@@ -61,10 +66,6 @@ class Tree(object):
         return identifier in self._nodes_map
 
     def get(self, nid: NodeId) -> KeyedNode:
-        """Get a node by its id.
-        :param nid: str, identifier of node to fetch
-        :rtype: lighttree.node.Node
-        """
         self._ensure_present(nid)
         return self.get_key(nid), self._nodes_map[nid]
 
@@ -128,13 +129,12 @@ class Tree(object):
         self,
         id_in: Optional[Sequence[NodeId]] = None,
         depth_in: Optional[Sequence[int]] = None,
-        filter_: Optional[Callable[[Node], bool]] = None,
+        filter_: Optional[Callable[[GenericNode], bool]] = None,
     ) -> List[KeyedNode]:
         """List nodes.
         :param id_in: list of str, optional, filter nodes among provided identifiers
         :param depth_in: list of int, optional, filter nodes whose depth in tree is among provided values
         :param filter\_: function, optional, filtering function to apply to each node
-        :rtype: list of lighttree.node.Node
         """
         return [
             (self.get_key(nid), node)
@@ -167,7 +167,7 @@ class Tree(object):
             raise NotFoundNodeError("Node id <%s> doesn't exist in tree" % nid)
         return nid
 
-    def _validate_node_insertion(self, node: Node) -> None:
+    def _validate_node_insertion(self, node: GenericNode) -> None:
         if node.identifier in self._nodes_map.keys():
             raise DuplicatedNodeError(
                 "Can't create node with id '%s'" % node.identifier
@@ -330,24 +330,12 @@ class Tree(object):
 
     def insert(
         self,
-        item: Union[Node, "Tree"],
+        item: Union[GenericNode, "Tree"],
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
         child_id_below: Optional[NodeId] = None,
         key: Key = None,
     ) -> "Tree":
-        if isinstance(item, Node):
-            if child_id_below is not None:
-                raise ValueError(
-                    '"child_id_below" parameter is reserved to Tree insertion.'
-                )
-            self.insert_node(
-                node=item,
-                parent_id=parent_id,
-                child_id=child_id,
-                key=key,
-            )
-            return self
         if isinstance(item, Tree):
             self.insert_tree(
                 new_tree=item,
@@ -357,13 +345,22 @@ class Tree(object):
                 key=key,
             )
             return self
-        raise ValueError(
-            '"item" parameter must either be a Node, or a Tree, got <%s>.' % type(item)
+        # item is GenericNode
+        if child_id_below is not None:
+            raise ValueError(
+                '"child_id_below" parameter is reserved to Tree insertion.'
+            )
+        self.insert_node(
+            node=item,
+            parent_id=parent_id,
+            child_id=child_id,
+            key=key,
         )
+        return self
 
     def insert_node(
         self,
-        node: Node,
+        node: GenericNode,
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
         key: Key = None,
@@ -386,7 +383,7 @@ class Tree(object):
 
     def _insert_node_below(
         self,
-        node: Node,
+        node: GenericNode,
         parent_id: Optional[NodeId],
         key: Key,
     ) -> None:
@@ -433,7 +430,7 @@ class Tree(object):
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
 
-    def _insert_node_above(self, node: Node, child_id: NodeId, key: Key) -> None:
+    def _insert_node_above(self, node: GenericNode, child_id: NodeId, key: Key) -> None:
         self._ensure_present(child_id)
         # get parent_id before dropping subtree
         try:
@@ -601,10 +598,10 @@ class Tree(object):
         self,
         nid: Optional[NodeId] = None,
         mode: str = "depth",
-        filter_: Optional[Callable[[Union[None, str, int], Node], bool]] = None,
+        filter_: Optional[Callable[[Union[None, str, int], GenericNode], bool]] = None,
         filter_through: bool = False,
         reverse: bool = False,
-    ) -> Iterable[KeyedNode]:
+    ) -> Iterator[KeyedNode]:
         """Python generator traversing the tree (or a subtree) with optional node filtering.
 
         Inspired by treelib implementation https://github.com/caesar0301/treelib/blob/master/treelib/tree.py#L374
@@ -615,7 +612,6 @@ class Tree(object):
         :param filter_through: if True, excluded nodes don't exclude their children.
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :return: node ids that satisfy the conditions if ``id_only`` is True, else nodes.
-        :rtype: generator
         """
         if mode not in ("depth", "width"):
             raise NotImplementedError("Traversal mode '%s' is not supported" % mode)
@@ -656,7 +652,7 @@ class Tree(object):
     def show(
         self,
         nid: Optional[NodeId] = None,
-        filter_: Optional[Callable[[Node], bool]] = None,
+        filter_: Optional[Callable[[GenericNode], bool]] = None,
         display_key: bool = True,
         reverse: bool = False,
         line_type: str = "ascii-ex",
@@ -676,8 +672,6 @@ class Tree(object):
         :param limit: int, truncate tree display to this number of lines
         :param kwargs: kwargs params passed to node ``line_repr`` method
         :param line_max_length
-        :rtype: unicode in python2, str in python3
-
         """
         output = ""
 
@@ -714,10 +708,10 @@ class Tree(object):
     def _iter_nodes_with_location(
         self,
         nid: Optional[NodeId],
-        filter_: Optional[Callable[[Node], bool]],
+        filter_: Optional[Callable[[GenericNode], bool]],
         reverse: bool,
         is_last_list: Optional[List[bool]] = None,
-    ) -> Iterable[Tuple[Tuple[bool, ...], Key, Node]]:
+    ) -> Iterable[Tuple[Tuple[bool, ...], Key, GenericNode]]:
         """Yield nodes with information on how they are placed.
         :param nid: starting node identifier
         :param filter_: filter function applied on nodes

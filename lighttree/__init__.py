@@ -1,4 +1,13 @@
 from .interactive import TreeBasedObj
-from .tree import Tree, Node, Key, KeyedNode, KeyedTree
+from .tree import Tree, Key, KeyedNode, KeyedTree
+from .node import Node, AutoIdNode
 
-__all__ = ["Tree", "Node", "TreeBasedObj", "Key", "KeyedNode", "KeyedTree"]
+__all__ = [
+    "Tree",
+    "Node",
+    "AutoIdNode",
+    "TreeBasedObj",
+    "Key",
+    "KeyedNode",
+    "KeyedTree",
+]

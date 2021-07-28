@@ -1,5 +1,5 @@
 from typing import Dict, Optional, Any, Union, List
-from lighttree import Node, Tree, Key
+from lighttree import Tree, Key, AutoIdNode
 from lighttree.node import NodeId
 from lighttree.interactive import TreeBasedObj
 
@@ -32,26 +32,26 @@ class JsonTree(Tree):
         else:
             pid = self.get_node_id_by_path(path=path)
         if isinstance(data, list) or not strict and isinstance(data, tuple):
-            k = self.insert_node(Node(keyed=False), parent_id=pid, key=key)
+            k = self.insert_node(AutoIdNode(keyed=False), parent_id=pid, key=key)
             path = self._concat(path, k)
             for el in data:
                 self._fill(el, strict=strict, path=path, key=None)
             return
         if isinstance(data, dict):
-            k = self.insert_node(Node(keyed=True), key=key, parent_id=pid)
+            k = self.insert_node(AutoIdNode(keyed=True), key=key, parent_id=pid)
             path = self._concat(path, k)
             for sk, el in data.items():
                 self._fill(el, strict=strict, path=path, key=sk)
             return
         if isinstance(data, (str, int, float)):
             self.insert_node(
-                Node(accept_children=False, repr_=str(data), data=data),
+                AutoIdNode(accept_children=False, repr_=str(data), data=data),
                 parent_id=pid,
                 key=key,
             )
             return
         if data is None:
-            self.insert_node(Node(accept_children=False), parent_id=pid)
+            self.insert_node(AutoIdNode(accept_children=False), parent_id=pid)
             return
         raise TypeError("Unsupported type %s" % type(data))
 
