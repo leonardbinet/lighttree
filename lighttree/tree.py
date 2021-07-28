@@ -22,6 +22,9 @@ from lighttree.node import Node, NodeId
 from .exceptions import MultipleRootError, NotFoundNodeError, DuplicatedNodeError
 from .utils import STYLES
 
+# Generic self type, allowing more precise inherited typing
+# https://mypy.readthedocs.io/en/stable/generics.html#generic-methods-and-generic-self
+GenTree = TypeVar("GenTree", bound="Tree")
 
 # keyed node has children with str keys, unkeyed node has children with int keys
 # note: root has no key (None value)
@@ -31,10 +34,6 @@ Path = Iterable[Key]
 
 GenericNode = TypeVar("GenericNode", bound=Node)
 KeyedNode = Tuple[Optional[Key], GenericNode]
-
-# Generic self type, allowing more precise inherited typing
-# https://mypy.readthedocs.io/en/stable/generics.html#generic-methods-and-generic-self
-GenTree = TypeVar("GenTree", bound="Tree")
 
 
 class Tree(Generic[GenericNode]):
