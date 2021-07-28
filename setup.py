@@ -1,6 +1,6 @@
 from setuptools import setup
 
-__version__ = "1.3.0"
+__version__ = "1.3.1"
 
 develop_requires = [
     "pre-commit",
