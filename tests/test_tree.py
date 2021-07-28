@@ -883,16 +883,16 @@ class TreeCase(TestCase):
 
     def test_get_node_id_by_path(self):
         t = get_sample_tree()
-        self.assertEqual(t.get_node_id_by_path("a"), "a")
-        self.assertEqual(t.get_node_id_by_path("a.b"), "ab")
-        self.assertEqual(t.get_node_id_by_path("a.a.1"), "aa1")
-        self.assertEqual(t.get_node_id_by_path("c.1"), "c1")
+        self.assertEqual(t.get_node_id_by_path(["a"]), "a")
+        self.assertEqual(t.get_node_id_by_path(["a", "b"]), "ab")
+        self.assertEqual(t.get_node_id_by_path(["a", "a", 1]), "aa1")
+        self.assertEqual(t.get_node_id_by_path(["c", 1]), "c1")
 
     def test_subtree(self):
         t = get_sample_tree()
 
         # by id
-        nid = t.get_node_id_by_path("a.a")
+        nid = t.get_node_id_by_path(["a", "a"])
         k, st = t.subtree(nid=nid)
         self.assertEqual(k, "a")
         self.assertEqual(
@@ -905,11 +905,11 @@ class TreeCase(TestCase):
 
     def test_path(self):
         t = get_sample_tree()
-        for p in ("a.a", "a.b", "a", "", "a.a.1"):
+        for p in [["a", "a"], ["a", "b"], ["a"], [], ["a", "a", 1]]:
             nid = t.get_node_id_by_path(p)
             self.assertEqual(t.get_path(nid), p)
 
-        t = get_sample_tree(path_separator="|")
-        for p in ("a|a", "a|b", "a", "", "a|a|1"):
-            nid = t.get_node_id_by_path(p)
-            self.assertEqual(t.get_path(nid), p)
+        # strict = False -> coerce "1" -> int
+        t = get_sample_tree()
+        nid = t.get_node_id_by_path(["a", "a", "1"])
+        self.assertEqual(t.get_path(nid), ["a", "a", 1])

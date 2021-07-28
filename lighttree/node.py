@@ -1,54 +1,63 @@
 import uuid
 from typing import Optional, Any, Tuple
+from dataclasses import dataclass
 
 NodeId = str
 
 
-class Node(object):
-    def __init__(
-        self,
-        identifier: Optional[NodeId] = None,
-        auto_uuid: bool = True,
-        keyed: bool = True,
-        accept_children: bool = True,
-        repr_: Optional[str] = None,
-        data: Any = None,
-    ) -> None:
-        """
-        :param identifier: node identifier, must be unique per tree
-        """
-        if identifier is None:
-            if not auto_uuid:
-                raise ValueError("Required identifier")
-            identifier = str(uuid.uuid4())
-        self.identifier = identifier
-        self.keyed = keyed
-        self.accept_children = accept_children
-        self.repr = repr_
-        self.data = data
+@dataclass
+class Node:
+
+    identifier: NodeId
+    keyed: bool = True
+    accept_children: bool = True
+    repr_: Optional[str] = None
+    data: Any = None
 
     def line_repr(self, depth: int, **kwargs: Any) -> Tuple[str, str]:
         """Control how node is displayed in tree representation.
-        _
-        ├── one                                           end
-        │   └── two                                     myEnd
-        └── three
+        First returned string is how node is represented on left, second string is how node is represented on right.
+
+        MyTree
+        ├── one                                        OneEnd
+        │   └── two                                    twoEnd
+        └── three                                    threeEnd
         """
-        if self.repr is not None:
-            return self.repr, ""
+        if self.repr_ is not None:
+            return self.repr_, ""
         if not self.accept_children:
-            return str(self.data), ""
+            if hasattr(self.data, "__str__"):
+                return str(self.data), ""
+            return "", ""
         if self.keyed:
             return "{}", ""
         return "[]", ""
 
-    def __eq__(self, other: Any) -> bool:
-        if not isinstance(other, self.__class__):
-            return False
-        return self.identifier == other.identifier
 
-    def __str__(self) -> str:
-        return "%s, id=%s" % (self.__class__.__name__, self.identifier)
+class AutoIdNode(Node):
+    def __init__(
+        self,
+        identifier: Optional[NodeId] = None,
+        keyed: bool = True,
+        accept_children: bool = True,
+        repr_: Optional[str] = None,
+        data: Any = None,
+    ):
 
-    def __repr__(self) -> str:
-        return self.__str__()
+        self._auto_generated_id: bool
+        identifier_: NodeId
+
+        if identifier is None:
+            identifier_ = str(uuid.uuid4())
+            self._auto_generated_id = True
+        else:
+            identifier_ = identifier
+            self._auto_generated_id = False
+
+        super(AutoIdNode, self).__init__(
+            identifier=identifier_,
+            keyed=keyed,
+            accept_children=accept_children,
+            repr_=repr_,
+            data=data,
+        )
