@@ -26,11 +26,15 @@ from .utils import STYLES
 # keyed node has children with str keys, unkeyed node has children with int keys
 # note: root has no key (None value)
 Key = Union[str, int]
-KeyedTree = Tuple[Optional[Key], "Tree"]
+KeyedTree = Tuple[Optional[Key], GenTree]
 Path = Iterable[Key]
 
 GenericNode = TypeVar("GenericNode", bound=Node)
 KeyedNode = Tuple[Optional[Key], GenericNode]
+
+# Generic self type, allowing more precise inherited typing
+# https://mypy.readthedocs.io/en/stable/generics.html#generic-methods-and-generic-self
+GenTree = TypeVar("GenTree", bound="Tree")
 
 
 class Tree(Generic[GenericNode]):
@@ -49,7 +53,7 @@ class Tree(Generic[GenericNode]):
 
     """
 
-    def __init__(self) -> None:
+    def __init__(self: GenTree) -> None:
         # nodes references and hierarchy in tree
         self.root: Optional[NodeId] = None
         # node identifier -> node
@@ -61,7 +65,7 @@ class Tree(Generic[GenericNode]):
         # "list" node identifier -> children nodes identifiers
         self._nodes_children_list: Dict[NodeId, List[NodeId]] = defaultdict(list)
 
-    def __contains__(self, identifier: NodeId) -> bool:
+    def __contains__(self: GenTree, identifier: NodeId) -> bool:
         return identifier in self._nodes_map
 
     def get(self, nid: NodeId) -> KeyedNode:
@@ -175,12 +179,12 @@ class Tree(Generic[GenericNode]):
                 "Can't create node with id '%s'" % node.identifier
             )
 
-    def _validate_tree_insertion(self, tree: "Tree") -> None:
+    def _validate_tree_insertion(self, tree: GenTree) -> None:
         for node_key, node in tree.list():
             # todo validate key
             self._validate_node_insertion(node)
 
-    def _clone_init(self, deep: bool) -> "Tree":
+    def _clone_init(self: GenTree, deep: bool) -> GenTree:
         """Method intended to be overloaded, to avoid rewriting whole methods relying on `clone` method when
         inheriting from Tree, so that the way a tree is duplicated is explicit.
 
@@ -206,14 +210,12 @@ class Tree(Generic[GenericNode]):
         return self.__class__()
 
     def clone(
-        self,
+        self: GenTree,
         with_nodes: bool = True,
         deep: bool = False,
         new_root: Optional[NodeId] = None,
-    ) -> "Tree":
-        """Clone current instance, with or without nodes.
-        :rtype: :class:`lighttree.tree.Tree`
-        """
+    ) -> GenTree:
+        """Clone current instance, with or without nodes."""
         new_tree = self._clone_init(deep)
         if not with_nodes:
             return new_tree
@@ -331,13 +333,13 @@ class Tree(Generic[GenericNode]):
         return [id_ for id_ in tree._nodes_map.keys() if tree.is_leaf(id_)]
 
     def insert(
-        self,
-        item: Union[GenericNode, "Tree"],
+        self: GenTree,
+        item: Union[GenericNode, GenTree],
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
         child_id_below: Optional[NodeId] = None,
         key: Optional[Key] = None,
-    ) -> "Tree":
+    ) -> GenTree:
         if isinstance(item, Tree):
             self.insert_tree(
                 new_tree=item,
@@ -447,7 +449,7 @@ class Tree(Generic[GenericNode]):
 
     def insert_tree(
         self,
-        new_tree: "Tree",
+        new_tree: GenTree,
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
         child_id_below: Optional[NodeId] = None,
@@ -473,11 +475,11 @@ class Tree(Generic[GenericNode]):
         return self.get_key(new_tree.root)
 
     def _insert_tree_below(
-        self,
-        new_tree: "Tree",
+        self: GenTree,
+        new_tree: GenTree,
         parent_id: Optional[NodeId],
         key: Optional[Key],
-    ) -> "Tree":
+    ) -> GenTree:
         if parent_id is None:
             # insertion at root requires tree to be empty
             if not self.is_empty():
@@ -498,8 +500,8 @@ class Tree(Generic[GenericNode]):
         return self
 
     def _insert_tree_above(
-        self,
-        new_tree: "Tree",
+        self: GenTree,
+        new_tree: GenTree,
         child_id: NodeId,
         child_id_below: Optional[NodeId],
         key: Optional[Key],
@@ -549,7 +551,7 @@ class Tree(Generic[GenericNode]):
         return key, node
 
     def drop_node(
-        self,
+        self: GenTree,
         nid: NodeId,
         with_children: bool = True,
     ) -> KeyedNode:
@@ -774,7 +776,9 @@ class Tree(Generic[GenericNode]):
         lasting: str = dt_line_corner if is_last_list[-1] else dt_line_box
         return leading + lasting
 
-    def merge(self, new_tree: "Tree", nid: Optional[NodeId] = None) -> "Tree":
+    def merge(
+        self: GenTree, new_tree: GenTree, nid: Optional[NodeId] = None
+    ) -> GenTree:
         """Merge "new_tree" on current tree by pasting its root children on current tree "nid" node.
 
         Consider the following trees:
