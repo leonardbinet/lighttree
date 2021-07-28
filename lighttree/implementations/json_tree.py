@@ -5,43 +5,34 @@ from lighttree.interactive import TreeBasedObj
 
 
 class JsonTree(Tree):
-    def __init__(
-        self, d: Optional[Dict] = None, strict: bool = True, path_separator: str = "."
-    ) -> None:
+    def __init__(self, d: Optional[Dict] = None, strict: bool = True) -> None:
         """
         :param d:
         :param strict: if False, will convert tuples into arrays, else raise error
-        :param path_separator: separator used to build path
         """
-        super(JsonTree, self).__init__(path_separator=path_separator)
+        super(JsonTree, self).__init__()
         if d is not None:
             self._fill(d, strict=strict, key=None)
 
-    @staticmethod
-    def _concat(a: Any, b: Any) -> str:
-        if not a and not b:
-            return ""
-        if not a:
-            return str(b)
-        return ".".join([str(a), str(b)])
-
-    def _fill(self, data: Any, key: Key, strict: bool, path: str = "") -> None:
+    def _fill(
+        self, data: Any, key: Optional[Key], strict: bool, path: Optional[List] = None
+    ) -> None:
         pid: Optional[NodeId]
+        path_: List = path or []
         if self.is_empty():
             pid = None
         else:
-            pid = self.get_node_id_by_path(path=path)
+            pid = self.get_node_id_by_path(path=path_)
+
         if isinstance(data, list) or not strict and isinstance(data, tuple):
             k = self.insert_node(AutoIdNode(keyed=False), parent_id=pid, key=key)
-            path = self._concat(path, k)
             for el in data:
-                self._fill(el, strict=strict, path=path, key=None)
+                self._fill(el, strict=strict, path=path_ + ([k] if k else []), key=None)
             return
         if isinstance(data, dict):
             k = self.insert_node(AutoIdNode(keyed=True), key=key, parent_id=pid)
-            path = self._concat(path, k)
             for sk, el in data.items():
-                self._fill(el, strict=strict, path=path, key=sk)
+                self._fill(el, strict=strict, path=path_ + ([k] if k else []), key=sk)
             return
         if isinstance(data, (str, int, float)):
             self.insert_node(

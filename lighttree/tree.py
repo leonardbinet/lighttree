@@ -23,13 +23,14 @@ from .exceptions import MultipleRootError, NotFoundNodeError, DuplicatedNodeErro
 from .utils import STYLES
 
 
-# root has no key (None), keyed node has children with str keys, unkeyed node has children with int keys
-Key = Union[None, str, int]
-KeyedTree = Tuple[Key, "Tree"]
-Path = str
+# keyed node has children with str keys, unkeyed node has children with int keys
+# note: root has no key (None value)
+Key = Union[str, int]
+KeyedTree = Tuple[Optional[Key], "Tree"]
+Path = Iterable[Key]
 
 GenericNode = TypeVar("GenericNode", bound=Node)
-KeyedNode = Tuple[Key, GenericNode]
+KeyedNode = Tuple[Optional[Key], GenericNode]
 
 
 class Tree(Generic[GenericNode]):
@@ -48,9 +49,7 @@ class Tree(Generic[GenericNode]):
 
     """
 
-    def __init__(self, path_separator: str = ".") -> None:
-        self.path_separator = path_separator
-
+    def __init__(self) -> None:
         # nodes references and hierarchy in tree
         self.root: Optional[NodeId] = None
         # node identifier -> node
@@ -79,37 +78,40 @@ class Tree(Generic[GenericNode]):
             if child_id is None:
                 raise ValueError("No child of key %s below %s" % (key, nid))
             return child_id
-        if not isinstance(key, (str, int)):
-            raise ValueError("Expected integer 'castable' key, got %s" % key)
-        return self._nodes_children_list[nid][int(key)]
+        try:
+            return self._nodes_children_list[nid][int(key)]
+        except (KeyError, ValueError, TypeError):
+            raise ValueError("No child of key %s below %s" % (key, nid))
 
     def child(self, nid: NodeId, key: Key) -> KeyedNode:
         return self.get(self.child_id(nid, key))
 
-    def get_node_id_by_path(self, path: Path) -> NodeId:
+    def get_node_id_by_path(self, path: Path, strict: bool = True) -> NodeId:
         nid = self.root
         if nid is None:
             raise ValueError("Empty tree")
         if path == "":
             return nid
-        keys = str(path).split(self.path_separator)
-        for k in keys:
-            nid = self.child_id(nid, k)
+        for k in path:
+            try:
+                nid = self.child_id(nid, k)
+            except ValueError:
+                if strict or not isinstance(k, str) or not k.isdigit():
+                    raise
+                nid = self.child_id(nid, int(k))
         if nid is None:
-            raise ValueError("Empty tree")
+            raise ValueError("Not found")
         return nid
 
     def get_path(self, nid: NodeId) -> Path:
-        return self.path_separator.join(
-            [
-                str(k)
-                for k, _ in self.ancestors(nid, from_root=True, include_current=True)[
-                    1:
-                ]
-            ]
-        )
+        return [
+            # ignore typing warning of potential None value, since None only applies at root node which is excluded
+            # [1:] -> exclude root node key
+            k  # type: ignore
+            for k, _ in self.ancestors(nid, from_root=True, include_current=True)[1:]
+        ]
 
-    def get_key(self, nid: NodeId) -> Key:
+    def get_key(self, nid: NodeId) -> Optional[Key]:
         """Get a node's key.
         :param nid: str, identifier of node
 
@@ -334,7 +336,7 @@ class Tree(Generic[GenericNode]):
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
         child_id_below: Optional[NodeId] = None,
-        key: Key = None,
+        key: Optional[Key] = None,
     ) -> "Tree":
         if isinstance(item, Tree):
             self.insert_tree(
@@ -363,15 +365,8 @@ class Tree(Generic[GenericNode]):
         node: GenericNode,
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
-        key: Key = None,
-    ) -> Key:
-        """Insert node, return key
-        :param node:
-        :param parent_id:
-        :param child_id:
-        :param key:
-        :return:
-        """
+        key: Optional[Key] = None,
+    ) -> Optional[Key]:
         self._validate_node_insertion(node)
         if parent_id is not None and child_id is not None:
             raise ValueError('Can declare at most "parent_id" or "child_id"')
@@ -385,7 +380,7 @@ class Tree(Generic[GenericNode]):
         self,
         node: GenericNode,
         parent_id: Optional[NodeId],
-        key: Key,
+        key: Optional[Key],
     ) -> None:
         # insertion at root
         if parent_id is None:
@@ -430,7 +425,9 @@ class Tree(Generic[GenericNode]):
         self._nodes_map[node_id] = node
         self._nodes_parent[node_id] = parent_id
 
-    def _insert_node_above(self, node: GenericNode, child_id: NodeId, key: Key) -> None:
+    def _insert_node_above(
+        self, node: GenericNode, child_id: NodeId, key: Optional[Key]
+    ) -> None:
         self._ensure_present(child_id)
         # get parent_id before dropping subtree
         try:
@@ -454,9 +451,8 @@ class Tree(Generic[GenericNode]):
         parent_id: Optional[NodeId] = None,
         child_id: Optional[NodeId] = None,
         child_id_below: Optional[NodeId] = None,
-        key: Key = None,
-    ) -> Key:
-        """Return new key"""
+        key: Optional[Key] = None,
+    ) -> Optional[Key]:
         self._validate_tree_insertion(new_tree)
         if new_tree.root is None:
             raise ValueError("Empty inserted tree")
@@ -480,7 +476,7 @@ class Tree(Generic[GenericNode]):
         self,
         new_tree: "Tree",
         parent_id: Optional[NodeId],
-        key: Key,
+        key: Optional[Key],
     ) -> "Tree":
         if parent_id is None:
             # insertion at root requires tree to be empty
@@ -506,7 +502,7 @@ class Tree(Generic[GenericNode]):
         new_tree: "Tree",
         child_id: NodeId,
         child_id_below: Optional[NodeId],
-        key: Key,
+        key: Optional[Key],
     ) -> None:
         # make all checks before modifying tree
         self._ensure_present(child_id)
@@ -711,7 +707,7 @@ class Tree(Generic[GenericNode]):
         filter_: Optional[Callable[[GenericNode], bool]],
         reverse: bool,
         is_last_list: Optional[List[bool]] = None,
-    ) -> Iterable[Tuple[Tuple[bool, ...], Key, GenericNode]]:
+    ) -> Iterable[Tuple[Tuple[bool, ...], Optional[Key], GenericNode]]:
         """Yield nodes with information on how they are placed.
         :param nid: starting node identifier
         :param filter_: filter function applied on nodes
