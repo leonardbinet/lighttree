@@ -1,7 +1,7 @@
 import re
 import unicodedata
 
-from typing import Optional, Union, List, Any, Dict
+from typing import Optional, Union, List, Any, Dict, TypeVar, Generic
 from lighttree.tree import Tree
 
 
@@ -111,7 +111,10 @@ class Obj:
         return self.__str__()
 
 
-class TreeBasedObj(Obj):
+GenericTree = TypeVar("GenericTree", bound=Tree)
+
+
+class TreeBasedObj(Obj, Generic[GenericTree]):
     """
     Recursive Obj whose structure is defined by a lighttree.Tree object.
 
@@ -124,15 +127,18 @@ class TreeBasedObj(Obj):
 
     def __init__(
         self,
-        tree: Tree,
+        tree: GenericTree,
         root_path: Optional[str] = None,
         depth: int = 1,
-        initial_tree: Optional[Tree] = None,
+        initial_tree: Optional[GenericTree] = None,
     ) -> None:
         super(TreeBasedObj, self).__init__()
-        self._tree = tree
-        self._root_path = root_path
-        self._initial_tree = initial_tree if initial_tree is not None else tree
+        self._tree: GenericTree = tree
+        self._root_path: Optional[str] = root_path
+        self._initial_tree: Optional[GenericTree] = (
+            initial_tree if initial_tree is not None else tree
+        )
+
         self._expand_attrs(depth)
 
     def _clone(self, nid: str, root_path: str, depth: int) -> "TreeBasedObj":
@@ -201,7 +207,7 @@ class TreeBasedObj(Obj):
             str(tree_repr),
         )
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Tree:
+    def __call__(self, *args: Any, **kwargs: Any) -> GenericTree:
         return self._tree
 
     def __str__(self) -> str:
