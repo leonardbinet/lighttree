@@ -135,7 +135,7 @@ class TreeBasedObj(Obj, Generic[GenericTree]):
         super(TreeBasedObj, self).__init__()
         self._tree: GenericTree = tree
         self._root_path: Optional[str] = root_path
-        self._initial_tree: Optional[GenericTree] = (
+        self._initial_tree: GenericTree = (
             initial_tree if initial_tree is not None else tree
         )
 
