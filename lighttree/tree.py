@@ -183,7 +183,7 @@ class Tree(Generic[GenericNode]):
             # todo validate key
             self._validate_node_insertion(node)
 
-    def _clone_init(self: GenTree, deep: bool) -> GenTree:
+    def _clone_init(self: GenTree, deep: bool, with_nodes: bool) -> GenTree:
         """Method intended to be overloaded, to avoid rewriting whole methods relying on `clone` method when
         inheriting from Tree, so that the way a tree is duplicated is explicit.
 
@@ -193,7 +193,7 @@ class Tree(Generic[GenericNode]):
         >>>         self.tree_description = tree_description
         >>>         self.large_data = large_data
         >>>
-        >>>     def _clone_init(self, deep=False):
+        >>>     def _clone_init(self, deep, with_nodes):
         >>>         return TreeWithComposition(
         >>>             tree_description=self.tree_description,
         >>>             large_data=copy.deepcopy(self.large_data) if deep else self.large_data
@@ -215,7 +215,7 @@ class Tree(Generic[GenericNode]):
         new_root: Optional[NodeId] = None,
     ) -> GenTree:
         """Clone current instance, with or without nodes."""
-        new_tree = self._clone_init(deep)
+        new_tree = self._clone_init(deep=deep, with_nodes=with_nodes)
         if not with_nodes:
             return new_tree
 
