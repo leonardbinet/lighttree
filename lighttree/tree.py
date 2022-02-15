@@ -157,20 +157,10 @@ class Tree(Generic[GenericNode]):
 
     def _ensure_present(
         self,
-        nid: Optional[NodeId],
-        defaults_to_root: bool = False,
-        allow_empty: bool = False,
-    ) -> Optional[NodeId]:
-        # TODO - split method based on intent
-        if nid is None:
-            if not self.is_empty() and defaults_to_root:
-                return self.root
-            if allow_empty:
-                return None
-            raise ValueError("'nid' set to None not supported.")
-        if nid not in self:
+        nid: NodeId,
+    ) -> None:
+        if nid is None or nid not in self:
             raise NotFoundNodeError("Node id <%s> doesn't exist in tree" % nid)
-        return nid
 
     def _validate_node_insertion(self, node: GenericNode) -> None:
         if node.identifier in self._nodes_map.keys():
@@ -610,9 +600,14 @@ class Tree(Generic[GenericNode]):
         :param reverse: the ``reverse`` param for sorting :class:`Node` objects in the same level
         :return: node ids that satisfy the conditions if ``id_only`` is True, else nodes.
         """
+        if self.is_empty():
+            return None
         if mode not in ("depth", "width"):
             raise NotImplementedError("Traversal mode '%s' is not supported" % mode)
-        nid = self._ensure_present(nid, defaults_to_root=True, allow_empty=True)
+        if nid is None:
+            nid = self.root
+        else:
+            self._ensure_present(nid)
         if nid is not None:
             key, node = self.get(nid)
             filter_pass_node = filter_ is None or filter_(key, node)
@@ -716,30 +711,36 @@ class Tree(Generic[GenericNode]):
         :param is_last_list: list of booleans, each indicating if node is the last yielded one at this depth
         :return: tuple of booleans, node
         """
+        if self.is_empty():
+            return None
+
         is_last_list = is_last_list or []
 
-        nid = self._ensure_present(nid, defaults_to_root=True, allow_empty=True)
-        if nid is not None:
-            key, node = self.get(nid)
-            if filter_ is None or filter_(node):
-                yield tuple(is_last_list), key, node
-                children = [
-                    (child_key, child_node)
-                    for child_key, child_node in self.children(nid)
-                    if filter_ is None or filter_(child_node)
-                ]
-                idxlast: int = len(children) - 1
-                children.sort(key=itemgetter(0), reverse=reverse)
-                for idx, (child_k, child) in enumerate(children):
-                    is_last_list.append(idx == idxlast)
-                    for item in self._iter_nodes_with_location(
-                        nid=child.identifier,
-                        filter_=filter_,
-                        reverse=reverse,
-                        is_last_list=is_last_list,
-                    ):
-                        yield item
-                    is_last_list.pop()
+        if nid is None:
+            nid = self.root
+        else:
+            self._ensure_present(nid)
+
+        key, node = self.get(nid)
+        if filter_ is None or filter_(node):
+            yield tuple(is_last_list), key, node
+            children = [
+                (child_key, child_node)
+                for child_key, child_node in self.children(nid)
+                if filter_ is None or filter_(child_node)
+            ]
+            idxlast: int = len(children) - 1
+            children.sort(key=itemgetter(0), reverse=reverse)
+            for idx, (child_k, child) in enumerate(children):
+                is_last_list.append(idx == idxlast)
+                for item in self._iter_nodes_with_location(
+                    nid=child.identifier,
+                    filter_=filter_,
+                    reverse=reverse,
+                    is_last_list=is_last_list,
+                ):
+                    yield item
+                is_last_list.pop()
 
     @staticmethod
     def _line_repr(
@@ -816,7 +817,10 @@ class Tree(Generic[GenericNode]):
         if self.is_empty():
             return self.insert(new_tree, parent_id=None)
 
-        nid = self._ensure_present(nid, defaults_to_root=True)
+        if nid is None:
+            nid = self.root
+        else:
+            self._ensure_present(nid)
 
         if new_tree.root is None:
             # not possible, only for typing

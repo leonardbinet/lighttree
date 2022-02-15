@@ -166,51 +166,6 @@ def test_is_empty():
     assert not t.is_empty()
 
 
-def test_ensure_present():
-    t = get_sample_tree()
-
-    # existing node id
-    assert t._ensure_present("a", defaults_to_root=False, allow_empty=False) == "a"
-    assert t._ensure_present("a", defaults_to_root=True, allow_empty=False) == "a"
-    assert t._ensure_present("a", defaults_to_root=False, allow_empty=True) == "a"
-    assert t._ensure_present("a", defaults_to_root=True, allow_empty=True) == "a"
-
-    # non-existing node id
-    with pytest.raises(NotFoundNodeError):
-        t._ensure_present("fake_id", defaults_to_root=False, allow_empty=False)
-    with pytest.raises(NotFoundNodeError):
-        t._ensure_present("fake_id", defaults_to_root=True, allow_empty=False)
-    with pytest.raises(NotFoundNodeError):
-        t._ensure_present("fake_id", defaults_to_root=False, allow_empty=True)
-    with pytest.raises(NotFoundNodeError):
-        t._ensure_present("fake_id", defaults_to_root=True, allow_empty=True)
-
-    # None on non-empty tree
-    with pytest.raises(ValueError):
-        t._ensure_present(None, defaults_to_root=False, allow_empty=False)
-    assert t._ensure_present(None, defaults_to_root=True, allow_empty=False) == "root"
-    assert t._ensure_present(None, defaults_to_root=False, allow_empty=True) is None
-    assert t._ensure_present(None, defaults_to_root=True, allow_empty=True) == "root"
-
-    # None on empty tree
-    empty_tree = Tree()
-    with pytest.raises(ValueError):
-        empty_tree._ensure_present(None, defaults_to_root=False, allow_empty=False)
-    with pytest.raises(ValueError):
-        assert (
-            empty_tree._ensure_present(None, defaults_to_root=True, allow_empty=False)
-            == "root"
-        )
-    assert (
-        empty_tree._ensure_present(None, defaults_to_root=False, allow_empty=True)
-        is None
-    )
-    assert (
-        empty_tree._ensure_present(None, defaults_to_root=True, allow_empty=True)
-        is None
-    )
-
-
 def test_clone_with_tree():
     t = get_sample_tree()
 
