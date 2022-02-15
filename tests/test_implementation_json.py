@@ -1,5 +1,3 @@
-from unittest import TestCase
-
 from lighttree.implementations.json_tree import (
     JsonTree,
     InteractiveJson,
@@ -7,12 +5,11 @@ from lighttree.implementations.json_tree import (
 )
 
 
-class JSONTestCase(TestCase):
-    def test_json_tree(self):
-        j = JsonTree({"a": [{}, {"b": 12}, [1, 2, 3]]})
-        self.assertEqual(
-            j.__str__(),
-            """{}
+def test_json_tree():
+    j = JsonTree({"a": [{}, {"b": 12}, [1, 2, 3]]})
+    assert (
+        j.__str__()
+        == """{}
 └── a: []
     ├── {}
     ├── {}
@@ -21,14 +18,15 @@ class JSONTestCase(TestCase):
         ├── 1
         ├── 2
         └── 3
-""",
-        )
+"""
+    )
 
-    def test_as_interactive_json_tree(self):
-        j = as_interactive_json({"a": [{}, {"b": 12}, [1, 2, 3]]})
-        self.assertEqual(
-            j.__str__(),
-            """<InteractiveJson>
+
+def test_as_interactive_json_tree():
+    j = as_interactive_json({"a": [{}, {"b": 12}, [1, 2, 3]]})
+    assert (
+        j.__str__()
+        == """<InteractiveJson>
 {}
 └── a: []
     ├── {}
@@ -38,10 +36,10 @@ class JSONTestCase(TestCase):
         ├── 1
         ├── 2
         └── 3
-""",
-        )
-        self.assertIn("a", dir(j))
-        a = j.a
-        self.assertIsInstance(a, InteractiveJson)
-        as_json = a()
-        self.assertEqual(as_json, [{}, {"b": 12}, [1, 2, 3]])
+"""
+    )
+    assert "a" in dir(j)
+    a = j.a
+    assert isinstance(a, InteractiveJson)
+    as_json = a()
+    assert as_json == [{}, {"b": 12}, [1, 2, 3]]
