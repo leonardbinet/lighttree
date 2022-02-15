@@ -343,10 +343,11 @@ def test_ancestors():
     assert t.ancestors_ids("c", include_current=True) == ["c", "root"]
     assert t.ancestors_ids("aa") == ["a", "root"]
     assert t.ancestors_ids("aa", from_root=True) == ["root", "a"]
-    assert (
-        t.ancestors_ids("aa", from_root=True, include_current=True)
-        == ["root", "a", "aa"],
-    )
+    assert t.ancestors_ids("aa", from_root=True, include_current=True) == [
+        "root",
+        "a",
+        "aa",
+    ]
     assert t.ancestors_ids("ab") == ["a", "root"]
     assert t.ancestors_ids("ab", from_root=True) == ["root", "a"]
     assert t.ancestors_ids("c1") == ["c", "root"]

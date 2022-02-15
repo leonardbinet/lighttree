@@ -67,7 +67,8 @@ def test_obj_attr_set_with_coercion():
     obj = ObjWithAttrCoercion()
     obj[".some_key"] = "some_value"
     assert obj._some_key == "some_value"
-    assert obj[".some_key"] == "some_value"
+    with pytest.raises(KeyError):
+        obj[".some_key"] == "some_value"
     assert "_some_key" in dir(obj)
 
 

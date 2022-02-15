@@ -55,12 +55,9 @@ class Obj:
     def __init__(self, **kwargs: Any) -> None:
         # will store non-valid names
         self.__d: Dict[str, Any] = dict()
+
         for k, v in kwargs.items():
-            if not (
-                isinstance(k, str)
-                and k not in ("_REPR_NAME", "_Obj__d")
-                and not k.startswith("__")
-            ):
+            if not is_valid_attr_name(k) or k == "_Obj__d":
                 raise ValueError(
                     "Attribute <%s> of type <%s> is not valid." % (k, type(k))
                 )
@@ -83,19 +80,22 @@ class Obj:
                 )
             self.__d[key] = value
             return
-        if not is_valid_attr_name(key):
-            self.__d[key] = value
-            if self._COERCE_ATTR:
-                # if coerc_attr is set to True, try to coerce
-                n_key = _coerce_attr(key)
-                if n_key is not None:
-                    super(Obj, self).__setattr__(n_key, value)
-        else:
+
+        if is_valid_attr_name(key):
             super(Obj, self).__setattr__(key, value)
+            return
+
+        if self._COERCE_ATTR:
+            # if coerc_attr is set to True, try to coerce
+            n_key = _coerce_attr(key)
+            if n_key is not None:
+                super(Obj, self).__setattr__(n_key, value)
+            return
+        self.__d[key] = value
 
     def __keys(self) -> List[Any]:
         return list(self.__d.keys()) + [
-            k for k in self.__dict__.keys() if k not in ("_REPR_NAME", "_Obj__d")
+            k for k in self.__dict__.keys() if k != "_Obj__d"
         ]
 
     def __contains__(self, item: Any) -> bool:
